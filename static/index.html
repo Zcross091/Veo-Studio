@@ -54,6 +54,9 @@
   <label>Video model
     <select id="model">
       <option value="veo_3_1" selected>Google Veo 3.1 (via GenRelay) [Recommended]</option>
+      <option value="fal-ai/minimax-video/text-to-video">MiniMax Video-01 (via Fal.ai)</option>
+      <option value="fal-ai/kling-video/v1/standard/text-to-video">Kling 1.0 (via Fal.ai)</option>
+      <option value="fal-ai/luma-dream-machine">Luma Dream Machine (via Fal.ai)</option>
       <option value="gemini-omni-1.1-flash">Gemini Omni 1.1 Flash (Google Direct)</option>
     </select>
   </label>
@@ -77,10 +80,13 @@
     <input id="style" value="Cinematic animation, consistent character design, rich lighting">
   </label>
   <label>Scene planner model
-    <input id="planner" value="gemini-3.8-flash">
+    <input id="planner" value="gemini-3.5-flash-lite">
   </label>
   <label>GenRelay API Key (for Veo 3.1)
     <input id="genrelay_key" type="password" placeholder="Loaded from .env if present" autocomplete="off">
+  </label>
+  <label>Fal.ai API Key (for MiniMax, Kling, Luma)
+    <input id="fal_key" type="password" placeholder="Loaded from .env if present" autocomplete="off">
   </label>
   <label>Gemini API Key (for Planner/Omni)
     <input id="gemini_key" type="password" placeholder="Loaded from .env if present" autocomplete="off">
@@ -193,8 +199,8 @@ function updateHint(){
   const secs = +$('#secs').value;
   const n = Math.ceil(secs / 8);
   const m = $('#model').value;
-  const prov = m.startsWith('veo_') ? 'GenRelay Veo 3.1' : 'Google Direct Omni';
-  $('#hint').textContent = `Target ~${secs}s video (up to ${n} clips of ~8s chained seamlessly via ${prov}).`;
+  const prov = m.startsWith('veo_') ? 'GenRelay Veo 3.1' : m.startsWith('fal-ai/') ? 'Fal.ai' : 'Google Direct Omni';
+  $('#hint').textContent = `Target ~${secs}s video (up to ${n} clips chained seamlessly via ${prov}).`;
 }
 
 $('#toggle').onclick = () => $('#settings').classList.toggle('open');
@@ -221,7 +227,8 @@ $('#form').onsubmit = async e => {
     model: $('#model').value.trim(),
     planner: $('#planner').value.trim(),
     gemini_key: $('#gemini_key').value.trim(),
-    genrelay_key: $('#genrelay_key').value.trim()
+    genrelay_key: $('#genrelay_key').value.trim(),
+    fal_key: $('#fal_key').value.trim()
   };
 
   const r = await fetch('/api/jobs', {

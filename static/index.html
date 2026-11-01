@@ -156,13 +156,21 @@ function render(job){
   c.cancel.style.display = (job.status === 'running') ? '' : 'none';
 
   // Render video player if video is ready (or if partial video exists)
-  if (job.video_url && c.shown !== job.video_url){
-    c.media.textContent = '';
-    const v = document.createElement('video');
-    v.src = job.video_url; v.controls = true; v.className = 'player';
-    const dl = el('a', 'dl', 'Download MP4'); dl.href = job.video_url; dl.download = `veo_${job.id}.mp4`;
-    c.media.append(v, dl);
-    c.shown = job.video_url;
+  if (job.video_url){
+    const vUrl = job.video_url + '?t=' + (job.done_steps || 1);
+    if (c.shown !== vUrl){
+      c.media.textContent = '';
+      const v = document.createElement('video');
+      v.src = vUrl;
+      v.controls = true;
+      v.className = 'player';
+      const durationSecs = Math.round((job.done_steps || 1) * 8);
+      const dl = el('a', 'dl', `Download MP4 (~${durationSecs}s)`);
+      dl.href = job.video_url;
+      dl.download = `veo_${job.id}.mp4`;
+      c.media.append(v, dl);
+      c.shown = vUrl;
+    }
   }
   chat.scrollTop = chat.scrollHeight;
 }

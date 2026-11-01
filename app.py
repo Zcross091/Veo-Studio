@@ -28,8 +28,8 @@ BASE = Path(__file__).parent
 OUT = BASE / "outputs"
 OUT.mkdir(exist_ok=True)
 
-DEFAULT_PLANNER_MODEL = "gemini-3.8-flash"
-PLANNER_FALLBACKS = ["gemini-3.5-flash-lite", "gemini-2.5-flash"]
+DEFAULT_PLANNER_MODEL = "gemini-3.5-flash-lite"
+PLANNER_FALLBACKS = ["gemini-3.8-flash", "gemini-2.5-flash"]
 CLIP_SECONDS = 8
 MAX_CLIPS = 24
 MAX_SECONDS = 180
@@ -189,12 +189,23 @@ def call_genrelay_create_task(api_key, model, prompt, aspect, resolution, frame_
             "User-Agent": "VeoStudio/2.0",
         },
     )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        res = json.loads(resp.read().decode("utf-8"))
-        task_id = res.get("task_id") or res.get("id")
-        if not task_id:
-            raise RuntimeError(f"GenRelay returned no task_id: {res}")
-        return task_id
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            res = json.loads(resp.read().decode("utf-8"))
+            task_id = res.get("task_id") or res.get("id")
+            if not task_id:
+                raise RuntimeError(f"GenRelay returned no task_id: {res}")
+            return task_id
+    except urllib.error.HTTPError as e:
+        raw = e.read().decode("utf-8", errors="ignore")
+        try:
+            data = json.loads(raw)
+            err_msg = data.get("message") or raw
+            if data.get("code") == "insufficient_user_quota" or "quota" in err_msg.lower():
+                raise RuntimeError(f"GenRelay balance exhausted ({err_msg}). Please top up credits at https://genrelay.ai to continue.")
+            raise RuntimeError(f"GenRelay error ({e.code}): {err_msg}")
+        except json.JSONDecodeError:
+            raise RuntimeError(f"GenRelay error ({e.code}): {raw}")
 
 
 def poll_genrelay_task(api_key, task_id, check_fn, log_fn, job, clip_idx, total_clips):
@@ -264,6 +275,10 @@ def with_retry(fn, log, check_fn=None, tries=3):
 
 def friendly(msg):
     """Add a plain-language explanation to raw API errors."""
+    if "insufficient_user_quota" in msg or "quota" in msg.lower() or "403" in msg:
+        if "GenRelay" in msg:
+            return msg
+        return f"GenRelay credit balance exhausted. Please top up your credits on https://genrelay.ai to continue generating. Raw error: {msg}"
     if "RESOURCE_EXHAUSTED" in msg or "429" in msg:
         return (
             "Google refused the request: quota limit 0 on free tier. Video models require billing enabled on Google AI Studio, "

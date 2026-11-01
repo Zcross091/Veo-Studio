@@ -5,81 +5,98 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Veo Studio</title>
 <style>
-  :root{--bg:#0f1115;--panel:#171a21;--line:#272b35;--text:#e8eaf0;--muted:#8b92a3;--accent:#7c9cff;--user:#232a3d}
+  :root{--bg:#0f1115;--panel:#171a21;--line:#272b35;--text:#e8eaf0;--muted:#8b92a3;--accent:#7c9cff;--user:#232a3d;--error:#f87171;--success:#4ade80}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,Segoe UI,Roboto,sans-serif;height:100vh;display:flex;flex-direction:column}
   header{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;border-bottom:1px solid var(--line)}
-  header h1{font-size:16px;margin:0;font-weight:600}
-  .ghost{background:none;border:1px solid var(--line);color:var(--muted);padding:6px 12px;border-radius:8px;cursor:pointer}
-  .ghost:hover{color:var(--text)}
-  #settings{display:none;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--panel)}
-  #settings.open{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
-  label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+  header h1{font-size:16px;margin:0;font-weight:600;display:flex;align-items:center;gap:8px}
+  .tag{font-size:11px;background:#242a38;color:var(--accent);padding:2px 8px;border-radius:12px;font-weight:500}
+  .ghost{background:none;border:1px solid var(--line);color:var(--muted);padding:6px 12px;border-radius:8px;cursor:pointer;transition:all .15s}
+  .ghost:hover{color:var(--text);border-color:var(--muted)}
+  .ghost:disabled{opacity:0.5;cursor:not-allowed}
+  #settings{display:none;padding:16px 20px;border-bottom:1px solid var(--line);background:var(--panel)}
+  #settings.open{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+  label{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted)}
   input,select,textarea{background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
   #chat{flex:1;overflow:auto;padding:20px 18px;max-width:860px;width:100%;margin:0 auto}
-  .empty{color:var(--muted);text-align:center;margin-top:12vh}
+  .empty{color:var(--muted);text-align:center;margin-top:12vh;font-size:14px}
   .msgs{margin-bottom:26px;display:flex;flex-direction:column;gap:10px}
-  .bubble{padding:12px 14px;border-radius:14px;max-width:92%;white-space:pre-wrap;word-wrap:break-word}
+  .bubble{padding:14px 16px;border-radius:14px;max-width:92%;white-space:pre-wrap;word-wrap:break-word}
   .user{background:var(--user);align-self:flex-end}
   .bot{background:var(--panel);border:1px solid var(--line);align-self:flex-start;width:100%}
-  .status{font-weight:600;margin-bottom:8px}
+  .status{font-weight:600;margin-bottom:8px;font-size:14px}
   .bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden}
-  .fill{height:100%;width:0;background:var(--accent);transition:width .5s}
-  .log{color:var(--muted);font-size:12px;margin:10px 0 0;white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace}
-  .player{width:100%;margin-top:12px;border-radius:10px;background:#000}
-  .dl{display:inline-block;margin-top:8px;color:var(--accent);text-decoration:none}
-  .bot button{margin-top:10px}
-  form{border-top:1px solid var(--line);padding:14px 18px}
+  .fill{height:100%;width:0;background:var(--accent);transition:width .4s ease}
+  .log{color:var(--muted);font-size:12px;margin:12px 0 0;white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;max-height:160px;overflow-y:auto;background:rgba(0,0,0,0.25);padding:8px 10px;border-radius:6px}
+  .player{width:100%;margin-top:14px;border-radius:10px;background:#000;box-shadow:0 4px 20px rgba(0,0,0,0.5)}
+  .actions{display:flex;gap:10px;align-items:center;margin-top:12px}
+  .dl{display:inline-flex;align-items:center;gap:6px;color:var(--accent);text-decoration:none;font-weight:500;padding:6px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px}
+  .dl:hover{background:#1f2533}
+  .cancel-btn{background:#2a1b1b;border:1px solid #5a2626;color:#fca5a5;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:13px;transition:all .15s}
+  .cancel-btn:hover{background:#3b1f1f;border-color:#7f2d2d}
+  .cancel-btn:disabled{opacity:0.6;cursor:not-allowed}
+  form{border-top:1px solid var(--line);padding:14px 18px;background:var(--panel)}
   .row{max-width:860px;margin:0 auto;display:flex;gap:10px;align-items:flex-end}
-  textarea{flex:1;resize:none;min-height:46px;max-height:160px}
-  .send{background:var(--accent);color:#0b0e16;border:0;border-radius:10px;padding:12px 18px;font-weight:600;cursor:pointer}
+  textarea{flex:1;resize:none;min-height:48px;max-height:160px}
+  .send{background:var(--accent);color:#0b0e16;border:0;border-radius:10px;padding:12px 20px;font-weight:600;cursor:pointer;transition:opacity .15s}
+  .send:hover{opacity:0.9}
   .hint{max-width:860px;margin:6px auto 0;font-size:12px;color:var(--muted)}
 </style>
 </head>
 <body>
 <header>
-  <h1>Veo Studio</h1>
+  <h1>Veo Studio <span class="tag">Veo 3.1 & Omni</span></h1>
   <button class="ghost" id="toggle" type="button">Settings</button>
 </header>
 
 <section id="settings">
+  <label>Video model
+    <select id="model">
+      <option value="veo_3_1" selected>Google Veo 3.1 (via GenRelay) [Recommended]</option>
+      <option value="gemini-omni-1.1-flash">Gemini Omni 1.1 Flash (Google Direct)</option>
+    </select>
+  </label>
   <label>Video length
     <select id="secs">
-      <option value="30">~30 seconds</option>
-      <option value="60" selected>~1 minute</option>
+      <option value="16">~16 seconds (2 clips - quick test)</option>
+      <option value="32">~32 seconds (4 clips)</option>
+      <option value="60" selected>~1 minute (7-8 clips)</option>
       <option value="90">~1.5 minutes</option>
       <option value="120">~2 minutes</option>
       <option value="180">~3 minutes (max)</option>
     </select>
   </label>
   <label>Aspect ratio
-    <select id="aspect"><option>16:9</option><option>9:16</option></select>
+    <select id="aspect"><option value="16:9" selected>16:9 Landscape</option><option value="9:16">9:16 Portrait (Shorts/Reels)</option></select>
   </label>
   <label>Quality
-    <select id="resolution"><option value="360p">360p (cheap test)</option><option value="720p" selected>720p</option><option value="1080p">1080p</option></select>
+    <select id="resolution"><option value="720p" selected>720p HD</option><option value="1080p">1080p Full HD</option></select>
   </label>
-  <label>Style added to every shot
-    <input id="style" value="Hand-drawn 2D animation, consistent characters and colors">
-  </label>
-  <label>Video model
-    <input id="model" list="models">
-    <datalist id="models">
-      <option value="gemini-omni-1.1-flash">
-    </datalist>
+  <label>Visual Style
+    <input id="style" value="Cinematic animation, consistent character design, rich lighting">
   </label>
   <label>Scene planner model
-    <input id="planner">
+    <input id="planner" value="gemini-3.8-flash">
   </label>
-  <label>API key (only if not in .env)
-    <input id="key" type="password" placeholder="kept in this page only" autocomplete="off">
+  <label>GenRelay API Key (for Veo 3.1)
+    <input id="genrelay_key" type="password" placeholder="Loaded from .env if present" autocomplete="off">
+  </label>
+  <label>Gemini API Key (for Planner/Omni)
+    <input id="gemini_key" type="password" placeholder="Loaded from .env if present" autocomplete="off">
   </label>
 </section>
 
-<main id="chat"><div class="empty" id="empty">Describe the animated video you want.<br>Each ~10 second clip takes a few minutes, so a 1 minute video can take 20-30 minutes.</div></main>
+<main id="chat">
+  <div class="empty" id="empty">
+    Describe the video or scene you want to generate.<br>
+    Veo 3.1 creates high-fidelity animated clips chained seamlessly shot-by-shot.
+  </div>
+</main>
 
 <form id="form">
   <div class="row">
-    <textarea id="prompt" placeholder="e.g. A tiny robot gardener restores a dying city park, Ghibli-like mood..." rows="1"></textarea>
+    <textarea id="prompt" placeholder="e.g. A tiny robot gardener restoring a glowing ancient sanctuary..." rows="1"></textarea>
     <button class="send" type="submit">Generate</button>
   </div>
   <div class="hint" id="hint"></div>
@@ -107,26 +124,43 @@ function ensureCard(job){
   const bar = el('div', 'bar'); const fill = el('div', 'fill'); bar.appendChild(fill);
   const log = el('pre', 'log');
   const media = el('div', 'media');
-  const cancel = el('button', 'ghost', 'Cancel');
+  const actions = el('div', 'actions');
+  const cancel = el('button', 'cancel-btn', 'Cancel');
   cancel.type = 'button';
-  cancel.onclick = () => { cancel.disabled = true; fetch('/api/jobs/' + job.id + '/cancel', {method: 'POST'}); };
-  a.append(status, bar, log, media, cancel);
+  cancel.onclick = async () => {
+    cancel.disabled = true;
+    cancel.textContent = 'Cancelling...';
+    try {
+      await fetch('/api/jobs/' + job.id + '/cancel', {method: 'POST'});
+    } catch (e) {
+      console.error(e);
+    }
+    // Immediately poll to refresh status
+    poll(job.id);
+  };
+  actions.appendChild(cancel);
+  a.append(status, bar, log, media, actions);
   wrap.append(u, a);
   chat.appendChild(wrap);
-  return cards[job.id] = {status, fill, log, media, cancel, shown: null};
+  return cards[job.id] = {status, fill, log, media, cancel, actions, shown: null};
 }
 
 function render(job){
   const c = ensureCard(job);
   c.status.textContent = job.message;
-  c.fill.style.width = (job.total ? 100 * job.done_steps / job.total : 0) + '%';
-  c.log.textContent = job.log.slice(-8).join('\n');
-  c.cancel.style.display = job.status === 'running' ? '' : 'none';
-  if (job.status !== 'running' && job.video_url && c.shown !== job.video_url){
+  c.fill.style.width = (job.total ? Math.min(100, Math.round(100 * job.done_steps / job.total)) : 0) + '%';
+  c.log.textContent = job.log.slice(-10).join('\n');
+  c.log.scrollTop = c.log.scrollHeight;
+
+  // Show Cancel only while job is actively running
+  c.cancel.style.display = (job.status === 'running') ? '' : 'none';
+
+  // Render video player if video is ready (or if partial video exists)
+  if (job.video_url && c.shown !== job.video_url){
     c.media.textContent = '';
     const v = document.createElement('video');
     v.src = job.video_url; v.controls = true; v.className = 'player';
-    const dl = el('a', 'dl', 'Download MP4'); dl.href = job.video_url; dl.download = '';
+    const dl = el('a', 'dl', 'Download MP4'); dl.href = job.video_url; dl.download = `veo_${job.id}.mp4`;
     c.media.append(v, dl);
     c.shown = job.video_url;
   }
@@ -135,20 +169,30 @@ function render(job){
 
 async function poll(id){
   try {
-    const job = await (await fetch('/api/jobs/' + id)).json();
+    const res = await fetch('/api/jobs/' + id);
+    if (!res.ok) return;
+    const job = await res.json();
     render(job);
-    if (job.status === 'running') setTimeout(() => poll(id), 3000);
-  } catch (e) { setTimeout(() => poll(id), 5000); }
+    if (job.status === 'running') {
+      setTimeout(() => poll(id), 2500);
+    }
+  } catch (e) {
+    setTimeout(() => poll(id), 4000);
+  }
 }
 
 function updateHint(){
   const secs = +$('#secs').value;
-  const n = Math.ceil(secs / 9);
-  $('#hint').textContent = `Up to ${n} clips of ~10s each for ~${secs}s of video. Billed by your Google account. Try 360p first to test cheaply.`;
+  const n = Math.ceil(secs / 8);
+  const m = $('#model').value;
+  const prov = m.startsWith('veo_') ? 'GenRelay Veo 3.1' : 'Google Direct Omni';
+  $('#hint').textContent = `Target ~${secs}s video (up to ${n} clips of ~8s chained seamlessly via ${prov}).`;
 }
 
 $('#toggle').onclick = () => $('#settings').classList.toggle('open');
 $('#secs').onchange = updateHint;
+$('#model').onchange = updateHint;
+
 $('#prompt').addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); $('#form').requestSubmit(); }
 });
@@ -158,27 +202,50 @@ $('#form').onsubmit = async e => {
   const prompt = $('#prompt').value.trim();
   if (!prompt) return;
   const secs = +$('#secs').value;
-  const n = Math.ceil(secs / 9);
-  if (!confirm(`This will generate up to ${n} clips (about ${secs}s of video) and bill your Google API account for each. Continue?`)) return;
+  const n = Math.ceil(secs / 8);
+
   const body = {
-    prompt, seconds: secs, aspect: $('#aspect').value, resolution: $('#resolution').value, style: $('#style').value.trim(),
-    model: $('#model').value.trim(), planner: $('#planner').value.trim(), api_key: $('#key').value.trim()
+    prompt,
+    seconds: secs,
+    aspect: $('#aspect').value,
+    resolution: $('#resolution').value,
+    style: $('#style').value.trim(),
+    model: $('#model').value.trim(),
+    planner: $('#planner').value.trim(),
+    gemini_key: $('#gemini_key').value.trim(),
+    genrelay_key: $('#genrelay_key').value.trim()
   };
-  const r = await fetch('/api/jobs', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+
+  const r = await fetch('/api/jobs', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  });
   const job = await r.json();
-  if (!r.ok){ alert(job.error || 'Something went wrong'); return; }
+  if (!r.ok){
+    alert(job.error || 'Could not start generation job');
+    return;
+  }
   $('#prompt').value = '';
-  render(job); poll(job.id);
+  render(job);
+  poll(job.id);
 };
 
 (async () => {
-  const cfg = await (await fetch('/api/config')).json();
-  $('#model').value = cfg.model;
-  $('#planner').value = cfg.planner;
-  if (!cfg.has_key) $('#settings').classList.add('open');
-  updateHint();
-  const jobs = await (await fetch('/api/jobs')).json();
-  jobs.forEach(j => { render(j); if (j.status === 'running') poll(j.id); });
+  try {
+    const cfg = await (await fetch('/api/config')).json();
+    if (cfg.model) $('#model').value = cfg.model;
+    if (cfg.planner) $('#planner').value = cfg.planner;
+    if (!cfg.has_key) $('#settings').classList.add('open');
+    updateHint();
+    const jobs = await (await fetch('/api/jobs')).json();
+    jobs.forEach(j => {
+      render(j);
+      if (j.status === 'running') poll(j.id);
+    });
+  } catch (err) {
+    console.error('Config fetch failed:', err);
+  }
 })();
 </script>
 </body>

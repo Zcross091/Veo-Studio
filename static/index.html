@@ -168,6 +168,10 @@
   <label>Video model
     <select id="model">
       <option value="veo_3_1" selected>Google Veo 3.1 (via GenRelay) [Recommended]</option>
+      <option value="bridge_auto">Free Tier Bridge: Auto (Kling / Luma / Hailuo)</option>
+      <option value="bridge_kling">Free Tier Bridge: Kling AI</option>
+      <option value="bridge_luma">Free Tier Bridge: Luma Dream Machine</option>
+      <option value="bridge_hailuo">Free Tier Bridge: Hailuo / MiniMax</option>
       <option value="fal-ai/minimax-video/text-to-video">MiniMax Video-01 (via Fal.ai)</option>
       <option value="fal-ai/kling-video/v1/standard/text-to-video">Kling 1.0 (via Fal.ai)</option>
       <option value="fal-ai/luma-dream-machine">Luma Dream Machine (via Fal.ai)</option>
@@ -312,7 +316,7 @@ function updateHint(){
   const secs = +$('#secs').value;
   const n = Math.ceil(secs / 8);
   const m = $('#model').value;
-  const prov = m.startsWith('veo_') ? 'GenRelay Veo 3.1' : m.startsWith('fal-ai/') ? 'Fal.ai' : 'Google Direct Omni';
+  const prov = m.startsWith('veo_') ? 'GenRelay Veo 3.1' : m.startsWith('bridge_') ? 'Free-Tier Bridge' : m.startsWith('fal-ai/') ? 'Fal.ai' : 'Google Direct Omni';
   $('#hint').textContent = `Target ~${secs}s video (up to ${n} clips chained seamlessly via ${prov}).`;
 }
 

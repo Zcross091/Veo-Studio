@@ -25,6 +25,13 @@ from flask import Flask, abort, jsonify, request, send_from_directory
 from google import genai
 from google.genai import types
 
+from bridge import (
+    kling_create_task, kling_check_status,
+    luma_create_task, luma_check_status,
+    hailuo_create_task, hailuo_check_status,
+    get_env_credentials
+)
+
 BASE = Path(__file__).parent
 OUT = BASE / "outputs"
 OUT.mkdir(exist_ok=True)
@@ -340,6 +347,51 @@ def call_fal_video(api_key, model, prompt, aspect, frame_url=None, check_fn=None
         return v_url
 
 
+# ---------- Free Tier Bridge Helper ----------
+def call_bridge_video(provider, prompt, aspect, frame_url=None, check_fn=None, log_fn=None, job=None, clip_idx=0, total_clips=1):
+    """Execute video generation using the Kling/Luma/Hailuo Free-Tier Bridge."""
+    creds = get_env_credentials()
+    chosen = provider
+    if chosen == "auto":
+        if creds.get("kling_token") or creds.get("kling_ak"):
+            chosen = "kling"
+        elif creds.get("luma_key"):
+            chosen = "luma"
+        elif creds.get("hailuo_key"):
+            chosen = "hailuo"
+        else:
+            raise RuntimeError("Free Tier Bridge: No credentials found for Kling, Luma, or Hailuo. Set keys in .env.")
+
+    if chosen == "kling":
+        task_id = kling_create_task(prompt, aspect=aspect, reference_image=frame_url, creds=creds)
+        poll_fn = kling_check_status
+    elif chosen == "luma":
+        task_id = luma_create_task(prompt, aspect=aspect, reference_image=frame_url, creds=creds)
+        poll_fn = luma_check_status
+    elif chosen == "hailuo":
+        task_id = hailuo_create_task(prompt, reference_image=frame_url, creds=creds)
+        poll_fn = hailuo_check_status
+    else:
+        raise RuntimeError(f"Unknown bridge provider: {chosen}")
+
+    for _ in range(240):
+        if check_fn:
+            check_fn()
+        res = poll_fn(task_id, creds=creds)
+        st = res.get("status")
+        if st == "completed":
+            v_url = res.get("video_url")
+            if not v_url:
+                raise RuntimeError("Bridge provider completed but returned no video URL")
+            return v_url
+        elif st == "failed":
+            raise RuntimeError(f"Bridge provider {chosen} failed: {res.get('error')}")
+        elif st == "in_progress" and job:
+            job["message"] = f"Generating clip {clip_idx + 1} of {total_clips} ({chosen.title()} rendering)..."
+        sleep_interruptible(4, check_fn)
+    raise TimeoutError(f"Bridge provider {chosen} timed out")
+
+
 # ---------- Planning & Retry Helpers ----------
 def with_retry(fn, log, check_fn=None, tries=3):
     for attempt in range(1, tries + 1):
@@ -481,6 +533,7 @@ def run_job(job, gemini_key, genrelay_key, fal_key):
 
         is_genrelay = job["model"].startswith("veo_") or job["model"].startswith("genrelay_")
         is_fal = job["model"].startswith("fal-ai/")
+        is_bridge = job["model"].startswith("bridge_")
 
         for i, scene in enumerate(scenes):
             check()
@@ -531,6 +584,16 @@ def run_job(job, gemini_key, genrelay_key, fal_key):
                 v_url = call_fal_video(
                     fal_key, job["model"], full_prompt, job["aspect"],
                     frame_url=frame_url, check_fn=check, log_fn=log, job=job, clip_idx=i, total_clips=n
+                )
+                download_url(v_url, path, check)
+
+            elif is_bridge:
+                # --- FREE TIER BRIDGE (Kling, Luma, Hailuo) ---
+                prov = job["model"].replace("bridge_", "")
+                frame_url = upload_frame_for_chaining(frame, log) if frame else None
+                v_url = call_bridge_video(
+                    prov, full_prompt, job["aspect"], frame_url=frame_url,
+                    check_fn=check, log_fn=log, job=job, clip_idx=i, total_clips=n
                 )
                 download_url(v_url, path, check)
 
@@ -694,7 +757,7 @@ def create_job():
         return jsonify(error="Veo 3.1 requires a GenRelay API key. Add GENRELAY_API to your .env or Settings."), 400
     if model.startswith("fal-ai/") and not fal_key:
         return jsonify(error="This model requires a Fal.ai API key. Add FAL.AI_API to .env or Settings."), 400
-    if not model.startswith("veo_") and not model.startswith("fal-ai/") and not gemini_key:
+    if model.startswith("gemini-") and not gemini_key:
         return jsonify(error="Gemini Omni requires a GEMINI_API_KEY. Add it to .env or Settings."), 400
 
     if any(j["status"] == "running" for j in JOBS.values()):

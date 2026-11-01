@@ -1,68 +1,29 @@
-# Veo Studio 🎬
+# Veo Studio
 
-A local web application that turns any story prompt into a continuous, multi-scene animated video with voiceover narration using Google's newest multimodal AI models (`gemini-omni-1.1-flash`, `veo-2.0`, `gemini-3.8-flash`).
+A ChatGPT-style page on your own PC that turns one prompt into a 1-3 minute animated video using Google's `gemini-omni-1.1-flash` (the Veo 3.1 preview models were shut down on Oct 22, 2026).
 
-Built with an intelligent hybrid pipeline:
-- **Cloud Video Generation:** Uses Google's newest `gemini-omni-1.1-flash` and `veo-2.0` models via the official Google GenAI Interactions & Video APIs.
-- **Resilient Fallback Synthesis:** If cloud video API quotas are restricted (e.g. Free Tier limit 0), it automatically switches to an in-memory cinematic 2D animation and neural voiceover narration engine (`edge-tts` + `imageio-ffmpeg`), guaranteeing that you always receive a completed, high-definition MP4.
+## Run it
 
----
+1. Install Python 3.10 or newer (python.org). On Windows tick "Add Python to PATH".
+2. In a terminal in this folder:
+   ```
+   pip install -U -r requirements.txt
+   ```
+   (`-U` matters: the new API needs google-genai 2.19 or newer. A copy of ffmpeg is installed automatically.)
+3. Copy `.env.example` to `.env` and paste your Gemini API key after `GEMINI_API_KEY=`.
+   (Or paste it into Settings in the page.)
+4. `python app.py`, then open http://127.0.0.1:5000
 
-## Features
+## How it works
 
-- **Top Google Video Models:**
-  - `gemini-omni-1.1-flash` *(Top Recommended)* — Native multimodal video generation with synchronized audio.
-  - `gemini-omni-flash-preview` — High-speed, low-latency video generation.
-  - `veo-2.0-generate-001` — DeepMind's cinematic HD video model.
-  - `veo-3.1-generate-preview` — Experimental Veo 3.1 preview.
-- **Top Frontier Story Directors / Planners:**
-  - `gemini-3.8-flash` *(Top Recommended)* — Advanced cinematic scene planning and dramatic dialogue direction.
-  - `gemini-3.1-pro-preview` — Deep reasoning for complex storylines.
-  - `gemini-3.5-flash` — High throughput, stable scene planning.
-  - `gemini-4-argon` — Next-gen frontier preview.
-  - `gemini-3.1-flash-lite` — Low-latency execution.
-- **Zero-Lock FFmpeg Streaming:** Frames are piped directly in memory to FFmpeg, preventing cloud storage (e.g. OneDrive) file-locking issues.
-- **Live Checkpointing:** Partial checkpoint MP4s are saved in `outputs/` after each scene, and concatenated seamlessly into the final video.
-- **Web UI:** ChatGPT-style interface with real-time progress bar, logs, embedded video player, and one-click MP4 download.
+- Gemini splits your idea into one prompt per ~10 second shot.
+- Omni makes the first clip. For every next clip, the last frame of the previous clip is sent as its first frame, so the picture stays continuous.
+- All clips are joined into one MP4. A "so far" video is saved in `outputs/` after every clip, so a failure still leaves you a partial video.
 
----
+## Things to know
 
-## Quick Start
-
-### 1. Requirements
-* Python 3.10 or newer (on Windows, tick *"Add Python to PATH"* during install).
-
-### 2. Setup
-Clone the repository and install dependencies:
-```bash
-git clone https://github.com/Zcross091/Veo-Studio.git
-cd Veo-Studio
-pip install -r requirements.txt
-```
-
-### 3. Configure API Key
-Copy `.env.example` to `.env` and add your Gemini API key:
-```env
-GEMINI_API_KEY=your_api_key_here
-```
-*(You can also paste the API key directly into the Settings modal in the web UI).*
-
-### 4. Run
-Start the application:
-```bash
-python app.py
-```
-Open **http://127.0.0.1:5000** in your browser.
-
----
-
-## How It Works
-
-1. **Scene Planning:** The selected Gemini Director model breaks your idea into structured, consecutive scenes with character actions, visual prompts, and localized voiceover narration.
-2. **Generation:** Each scene is rendered with video, subtitles, and synchronized audio.
-3. **Assembly:** All scene clips are stitched into a continuous video (`outputs/video_<id>.mp4`) ready to watch and download.
-
----
-
-## License
-MIT License
+- Cost: each clip is billed to your Google account. Test with 30 seconds at 360p first.
+- Time: a few minutes per clip, so 1 minute of video can take 20-30 minutes. Keep the terminal open.
+- Clips join with a cut every ~10s, and music or voice can change at the cuts. You can add one soundtrack over the final video in any editor.
+- Model names change. If you get "model not found", edit the name in Settings.
+- The server only listens on 127.0.0.1, so only your PC can open it.

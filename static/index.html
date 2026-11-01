@@ -49,27 +49,33 @@
       <option value="60" selected>~1 minute</option>
       <option value="90">~1.5 minutes</option>
       <option value="120">~2 minutes</option>
-      <option value="148">~2.5 minutes (max)</option>
+      <option value="180">~3 minutes (max)</option>
     </select>
   </label>
   <label>Aspect ratio
     <select id="aspect"><option>16:9</option><option>9:16</option></select>
   </label>
+  <label>Quality
+    <select id="resolution"><option value="360p">360p (cheap test)</option><option value="720p" selected>720p</option><option value="1080p">1080p</option></select>
+  </label>
   <label>Style added to every shot
     <input id="style" value="Hand-drawn 2D animation, consistent characters and colors">
   </label>
   <label>Video model
-    <select id="model"></select>
+    <input id="model" list="models">
+    <datalist id="models">
+      <option value="gemini-omni-1.1-flash">
+    </datalist>
   </label>
   <label>Scene planner model
-    <select id="planner"></select>
+    <input id="planner">
   </label>
   <label>API key (only if not in .env)
     <input id="key" type="password" placeholder="kept in this page only" autocomplete="off">
   </label>
 </section>
 
-<main id="chat"><div class="empty" id="empty">Describe the animated video you want.<br>Longer videos take longer: expect roughly 3 minutes per 7-8 seconds of video.</div></main>
+<main id="chat"><div class="empty" id="empty">Describe the animated video you want.<br>Each ~10 second clip takes a few minutes, so a 1 minute video can take 20-30 minutes.</div></main>
 
 <form id="form">
   <div class="row">
@@ -137,8 +143,8 @@ async function poll(id){
 
 function updateHint(){
   const secs = +$('#secs').value;
-  const n = 1 + Math.ceil(Math.max(0, secs - 8) / 7);
-  $('#hint').textContent = `${n} scenes for ~${secs}s of animated video.`;
+  const n = Math.ceil(secs / 9);
+  $('#hint').textContent = `Up to ${n} clips of ~10s each for ~${secs}s of video. Billed by your Google account. Try 360p first to test cheaply.`;
 }
 
 $('#toggle').onclick = () => $('#settings').classList.toggle('open');
@@ -152,9 +158,10 @@ $('#form').onsubmit = async e => {
   const prompt = $('#prompt').value.trim();
   if (!prompt) return;
   const secs = +$('#secs').value;
-  const n = 1 + Math.ceil(Math.max(0, secs - 8) / 7);
+  const n = Math.ceil(secs / 9);
+  if (!confirm(`This will generate up to ${n} clips (about ${secs}s of video) and bill your Google API account for each. Continue?`)) return;
   const body = {
-    prompt, seconds: secs, aspect: $('#aspect').value, style: $('#style').value.trim(),
+    prompt, seconds: secs, aspect: $('#aspect').value, resolution: $('#resolution').value, style: $('#style').value.trim(),
     model: $('#model').value.trim(), planner: $('#planner').value.trim(), api_key: $('#key').value.trim()
   };
   const r = await fetch('/api/jobs', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
@@ -164,21 +171,10 @@ $('#form').onsubmit = async e => {
   render(job); poll(job.id);
 };
 
-function populateDropdown(selectEl, models, selectedVal){
-  selectEl.innerHTML = '';
-  (models || []).forEach(m => {
-    const opt = document.createElement('option');
-    opt.value = m.id;
-    opt.textContent = `${m.name} [${m.badge}]`;
-    if (m.id === selectedVal || (!selectedVal && m.default)) opt.selected = true;
-    selectEl.appendChild(opt);
-  });
-}
-
 (async () => {
   const cfg = await (await fetch('/api/config')).json();
-  if (cfg.video_models) populateDropdown($('#model'), cfg.video_models, cfg.model);
-  if (cfg.planner_models) populateDropdown($('#planner'), cfg.planner_models, cfg.planner);
+  $('#model').value = cfg.model;
+  $('#planner').value = cfg.planner;
   if (!cfg.has_key) $('#settings').classList.add('open');
   updateHint();
   const jobs = await (await fetch('/api/jobs')).json();

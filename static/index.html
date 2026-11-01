@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Veo Studio</title>
+<style>
+  :root{--bg:#0f1115;--panel:#171a21;--line:#272b35;--text:#e8eaf0;--muted:#8b92a3;--accent:#7c9cff;--user:#232a3d}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,Segoe UI,Roboto,sans-serif;height:100vh;display:flex;flex-direction:column}
+  header{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;border-bottom:1px solid var(--line)}
+  header h1{font-size:16px;margin:0;font-weight:600}
+  .ghost{background:none;border:1px solid var(--line);color:var(--muted);padding:6px 12px;border-radius:8px;cursor:pointer}
+  .ghost:hover{color:var(--text)}
+  #settings{display:none;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--panel)}
+  #settings.open{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+  label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+  input,select,textarea{background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit}
+  #chat{flex:1;overflow:auto;padding:20px 18px;max-width:860px;width:100%;margin:0 auto}
+  .empty{color:var(--muted);text-align:center;margin-top:12vh}
+  .msgs{margin-bottom:26px;display:flex;flex-direction:column;gap:10px}
+  .bubble{padding:12px 14px;border-radius:14px;max-width:92%;white-space:pre-wrap;word-wrap:break-word}
+  .user{background:var(--user);align-self:flex-end}
+  .bot{background:var(--panel);border:1px solid var(--line);align-self:flex-start;width:100%}
+  .status{font-weight:600;margin-bottom:8px}
+  .bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+  .fill{height:100%;width:0;background:var(--accent);transition:width .5s}
+  .log{color:var(--muted);font-size:12px;margin:10px 0 0;white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace}
+  .player{width:100%;margin-top:12px;border-radius:10px;background:#000}
+  .dl{display:inline-block;margin-top:8px;color:var(--accent);text-decoration:none}
+  .bot button{margin-top:10px}
+  form{border-top:1px solid var(--line);padding:14px 18px}
+  .row{max-width:860px;margin:0 auto;display:flex;gap:10px;align-items:flex-end}
+  textarea{flex:1;resize:none;min-height:46px;max-height:160px}
+  .send{background:var(--accent);color:#0b0e16;border:0;border-radius:10px;padding:12px 18px;font-weight:600;cursor:pointer}
+  .hint{max-width:860px;margin:6px auto 0;font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Veo Studio</h1>
+  <button class="ghost" id="toggle" type="button">Settings</button>
+</header>
+
+<section id="settings">
+  <label>Video length
+    <select id="secs">
+      <option value="30">~30 seconds</option>
+      <option value="60" selected>~1 minute</option>
+      <option value="90">~1.5 minutes</option>
+      <option value="120">~2 minutes</option>
+      <option value="148">~2.5 minutes (max)</option>
+    </select>
+  </label>
+  <label>Aspect ratio
+    <select id="aspect"><option>16:9</option><option>9:16</option></select>
+  </label>
+  <label>Style added to every shot
+    <input id="style" value="Hand-drawn 2D animation, consistent characters and colors">
+  </label>
+  <label>Video model
+    <select id="model"></select>
+  </label>
+  <label>Scene planner model
+    <select id="planner"></select>
+  </label>
+  <label>API key (only if not in .env)
+    <input id="key" type="password" placeholder="kept in this page only" autocomplete="off">
+  </label>
+</section>
+
+<main id="chat"><div class="empty" id="empty">Describe the animated video you want.<br>Longer videos take longer: expect roughly 3 minutes per 7-8 seconds of video.</div></main>
+
+<form id="form">
+  <div class="row">
+    <textarea id="prompt" placeholder="e.g. A tiny robot gardener restores a dying city park, Ghibli-like mood..." rows="1"></textarea>
+    <button class="send" type="submit">Generate</button>
+  </div>
+  <div class="hint" id="hint"></div>
+</form>
+
+<script>
+const $ = s => document.querySelector(s);
+const chat = $('#chat');
+const cards = {};
+
+function el(tag, cls, text){
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+function ensureCard(job){
+  if (cards[job.id]) return cards[job.id];
+  $('#empty')?.remove();
+  const wrap = el('div', 'msgs');
+  const u = el('div', 'bubble user', job.prompt);
+  const a = el('div', 'bubble bot');
+  const status = el('div', 'status');
+  const bar = el('div', 'bar'); const fill = el('div', 'fill'); bar.appendChild(fill);
+  const log = el('pre', 'log');
+  const media = el('div', 'media');
+  const cancel = el('button', 'ghost', 'Cancel');
+  cancel.type = 'button';
+  cancel.onclick = () => { cancel.disabled = true; fetch('/api/jobs/' + job.id + '/cancel', {method: 'POST'}); };
+  a.append(status, bar, log, media, cancel);
+  wrap.append(u, a);
+  chat.appendChild(wrap);
+  return cards[job.id] = {status, fill, log, media, cancel, shown: null};
+}
+
+function render(job){
+  const c = ensureCard(job);
+  c.status.textContent = job.message;
+  c.fill.style.width = (job.total ? 100 * job.done_steps / job.total : 0) + '%';
+  c.log.textContent = job.log.slice(-8).join('\n');
+  c.cancel.style.display = job.status === 'running' ? '' : 'none';
+  if (job.status !== 'running' && job.video_url && c.shown !== job.video_url){
+    c.media.textContent = '';
+    const v = document.createElement('video');
+    v.src = job.video_url; v.controls = true; v.className = 'player';
+    const dl = el('a', 'dl', 'Download MP4'); dl.href = job.video_url; dl.download = '';
+    c.media.append(v, dl);
+    c.shown = job.video_url;
+  }
+  chat.scrollTop = chat.scrollHeight;
+}
+
+async function poll(id){
+  try {
+    const job = await (await fetch('/api/jobs/' + id)).json();
+    render(job);
+    if (job.status === 'running') setTimeout(() => poll(id), 3000);
+  } catch (e) { setTimeout(() => poll(id), 5000); }
+}
+
+function updateHint(){
+  const secs = +$('#secs').value;
+  const n = 1 + Math.ceil(Math.max(0, secs - 8) / 7);
+  $('#hint').textContent = `${n} scenes for ~${secs}s of animated video.`;
+}
+
+$('#toggle').onclick = () => $('#settings').classList.toggle('open');
+$('#secs').onchange = updateHint;
+$('#prompt').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); $('#form').requestSubmit(); }
+});
+
+$('#form').onsubmit = async e => {
+  e.preventDefault();
+  const prompt = $('#prompt').value.trim();
+  if (!prompt) return;
+  const secs = +$('#secs').value;
+  const n = 1 + Math.ceil(Math.max(0, secs - 8) / 7);
+  const body = {
+    prompt, seconds: secs, aspect: $('#aspect').value, style: $('#style').value.trim(),
+    model: $('#model').value.trim(), planner: $('#planner').value.trim(), api_key: $('#key').value.trim()
+  };
+  const r = await fetch('/api/jobs', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+  const job = await r.json();
+  if (!r.ok){ alert(job.error || 'Something went wrong'); return; }
+  $('#prompt').value = '';
+  render(job); poll(job.id);
+};
+
+function populateDropdown(selectEl, models, selectedVal){
+  selectEl.innerHTML = '';
+  (models || []).forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m.id;
+    opt.textContent = `${m.name} [${m.badge}]`;
+    if (m.id === selectedVal || (!selectedVal && m.default)) opt.selected = true;
+    selectEl.appendChild(opt);
+  });
+}
+
+(async () => {
+  const cfg = await (await fetch('/api/config')).json();
+  if (cfg.video_models) populateDropdown($('#model'), cfg.video_models, cfg.model);
+  if (cfg.planner_models) populateDropdown($('#planner'), cfg.planner_models, cfg.planner);
+  if (!cfg.has_key) $('#settings').classList.add('open');
+  updateHint();
+  const jobs = await (await fetch('/api/jobs')).json();
+  jobs.forEach(j => { render(j); if (j.status === 'running') poll(j.id); });
+})();
+</script>
+</body>
+</html>

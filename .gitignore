@@ -1,0 +1,19 @@
+# Secrets & API Keys
+.env
+.env.local
+
+# Python virtual environment & cache
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Generated Videos & Outputs
+outputs/
+*.mp4
+*.mp3
+
+# Scratch / Temp files
+scratch/
+.system_generated/

@@ -738,5 +738,18 @@ def videos(name):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "5000"))
-    print(f"\n  Veo Studio running at http://127.0.0.1:{port}\n")
-    app.run(host="127.0.0.1", port=port, threaded=True)
+    import socket
+    local_ip = "127.0.0.1"
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+        s.close()
+    except Exception:
+        pass
+    print(f"\n  ========================================================")
+    print(f"  Veo Studio Ready!")
+    print(f"  - On your PC:    http://127.0.0.1:{port}")
+    print(f"  - On your Phone: http://{local_ip}:{port} (connect to same Wi-Fi)")
+    print(f"  ========================================================\n")
+    app.run(host="0.0.0.0", port=port, threaded=True)

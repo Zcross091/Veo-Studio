@@ -2,46 +2,160 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Veo Studio</title>
 <style>
-  :root{--bg:#0f1115;--panel:#171a21;--line:#272b35;--text:#e8eaf0;--muted:#8b92a3;--accent:#7c9cff;--user:#232a3d;--error:#f87171;--success:#4ade80}
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,Segoe UI,Roboto,sans-serif;height:100vh;display:flex;flex-direction:column}
-  header{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;border-bottom:1px solid var(--line)}
-  header h1{font-size:16px;margin:0;font-weight:600;display:flex;align-items:center;gap:8px}
-  .tag{font-size:11px;background:#242a38;color:var(--accent);padding:2px 8px;border-radius:12px;font-weight:500}
-  .ghost{background:none;border:1px solid var(--line);color:var(--muted);padding:6px 12px;border-radius:8px;cursor:pointer;transition:all .15s}
-  .ghost:hover{color:var(--text);border-color:var(--muted)}
+  :root{
+    --bg:#0f1115;
+    --panel:#171a21;
+    --card:#1d212b;
+    --line:#272b35;
+    --text:#e8eaf0;
+    --muted:#8b92a3;
+    --accent:#7c9cff;
+    --user:#232a3d;
+    --error:#f87171;
+    --success:#4ade80;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{
+    margin:0;padding:0;
+    background:var(--bg);color:var(--text);
+    font:15px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    height:100vh;height:100dvh;
+    display:flex;flex-direction:column;
+    overflow:hidden;
+  }
+  header{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:max(12px, env(safe-area-inset-top)) 16px 12px;
+    border-bottom:1px solid var(--line);
+    background:var(--bg);
+    flex-shrink:0;
+  }
+  header h1{
+    font-size:16px;margin:0;font-weight:600;
+    display:flex;align-items:center;gap:8px;
+  }
+  .tag{
+    font-size:11px;background:#242a38;color:var(--accent);
+    padding:2px 8px;border-radius:12px;font-weight:500;
+  }
+  .ghost{
+    background:none;border:1px solid var(--line);color:var(--muted);
+    padding:8px 14px;border-radius:8px;cursor:pointer;
+    font-size:13px;font-weight:500;min-height:38px;
+    touch-action:manipulation;transition:all .15s;
+  }
+  .ghost:hover,.ghost:active{color:var(--text);border-color:var(--muted)}
   .ghost:disabled{opacity:0.5;cursor:not-allowed}
-  #settings{display:none;padding:16px 20px;border-bottom:1px solid var(--line);background:var(--panel)}
-  #settings.open{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
-  label{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted)}
-  input,select,textarea{background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit}
+
+  #settings{
+    display:none;padding:14px 16px;
+    border-bottom:1px solid var(--line);
+    background:var(--panel);
+    flex-shrink:0;max-height:55vh;
+    overflow-y:auto;-webkit-overflow-scrolling:touch;
+  }
+  #settings.open{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;
+  }
+  label{
+    display:flex;flex-direction:column;gap:5px;
+    font-size:12px;color:var(--muted);
+  }
+  input,select,textarea{
+    background:var(--bg);color:var(--text);
+    border:1px solid var(--line);border-radius:8px;
+    padding:10px 12px;font-size:16px; /* 16px prevents iOS Safari auto-zoom */
+    font-family:inherit;min-height:42px;
+  }
   input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
-  #chat{flex:1;overflow:auto;padding:20px 18px;max-width:860px;width:100%;margin:0 auto}
-  .empty{color:var(--muted);text-align:center;margin-top:12vh;font-size:14px}
-  .msgs{margin-bottom:26px;display:flex;flex-direction:column;gap:10px}
-  .bubble{padding:14px 16px;border-radius:14px;max-width:92%;white-space:pre-wrap;word-wrap:break-word}
-  .user{background:var(--user);align-self:flex-end}
-  .bot{background:var(--panel);border:1px solid var(--line);align-self:flex-start;width:100%}
+
+  #chat{
+    flex:1;overflow-y:auto;padding:16px;
+    max-width:860px;width:100%;margin:0 auto;
+    -webkit-overflow-scrolling:touch;
+  }
+  .empty{
+    color:var(--muted);text-align:center;
+    margin-top:14vh;font-size:14px;line-height:1.6;
+    padding:0 16px;
+  }
+  .msgs{margin-bottom:20px;display:flex;flex-direction:column;gap:8px}
+  .bubble{
+    padding:14px 16px;border-radius:14px;
+    max-width:92%;white-space:pre-wrap;word-break:break-word;
+  }
+  .user{background:var(--user);align-self:flex-end;border-bottom-right-radius:4px}
+  .bot{background:var(--panel);border:1px solid var(--line);align-self:flex-start;width:100%;border-bottom-left-radius:4px}
   .status{font-weight:600;margin-bottom:8px;font-size:14px}
   .bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden}
   .fill{height:100%;width:0;background:var(--accent);transition:width .4s ease}
-  .log{color:var(--muted);font-size:12px;margin:12px 0 0;white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;max-height:160px;overflow-y:auto;background:rgba(0,0,0,0.25);padding:8px 10px;border-radius:6px}
-  .player{width:100%;margin-top:14px;border-radius:10px;background:#000;box-shadow:0 4px 20px rgba(0,0,0,0.5)}
-  .actions{display:flex;gap:10px;align-items:center;margin-top:12px}
-  .dl{display:inline-flex;align-items:center;gap:6px;color:var(--accent);text-decoration:none;font-weight:500;padding:6px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px}
-  .dl:hover{background:#1f2533}
-  .cancel-btn{background:#2a1b1b;border:1px solid #5a2626;color:#fca5a5;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:13px;transition:all .15s}
-  .cancel-btn:hover{background:#3b1f1f;border-color:#7f2d2d}
+  .log{
+    color:var(--muted);font-size:11px;margin:10px 0 0;
+    white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    max-height:130px;overflow-y:auto;background:rgba(0,0,0,0.3);
+    padding:8px 10px;border-radius:6px;word-break:break-all;
+    -webkit-overflow-scrolling:touch;
+  }
+  .player{
+    width:100%;margin-top:12px;border-radius:10px;
+    background:#000;max-height:65vh;
+    box-shadow:0 4px 18px rgba(0,0,0,0.5);
+  }
+  .actions{display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap}
+  .dl{
+    display:inline-flex;align-items:center;justify-content:center;
+    gap:6px;color:var(--accent);text-decoration:none;
+    font-weight:500;padding:8px 14px;border:1px solid var(--line);
+    border-radius:8px;font-size:13px;min-height:42px;
+    touch-action:manipulation;
+  }
+  .dl:hover,.dl:active{background:#1f2533}
+  .cancel-btn{
+    background:#2a1b1b;border:1px solid #5a2626;color:#fca5a5;
+    padding:8px 14px;border-radius:8px;cursor:pointer;
+    font-size:13px;min-height:42px;touch-action:manipulation;
+    transition:all .15s;
+  }
+  .cancel-btn:hover,.cancel-btn:active{background:#3b1f1f}
   .cancel-btn:disabled{opacity:0.6;cursor:not-allowed}
-  form{border-top:1px solid var(--line);padding:14px 18px;background:var(--panel)}
-  .row{max-width:860px;margin:0 auto;display:flex;gap:10px;align-items:flex-end}
-  textarea{flex:1;resize:none;min-height:48px;max-height:160px}
-  .send{background:var(--accent);color:#0b0e16;border:0;border-radius:10px;padding:12px 20px;font-weight:600;cursor:pointer;transition:opacity .15s}
-  .send:hover{opacity:0.9}
-  .hint{max-width:860px;margin:6px auto 0;font-size:12px;color:var(--muted)}
+
+  form{
+    border-top:1px solid var(--line);
+    padding:10px 14px max(14px, env(safe-area-inset-bottom));
+    background:var(--panel);flex-shrink:0;
+  }
+  .row{max-width:860px;margin:0 auto;display:flex;gap:8px;align-items:flex-end}
+  textarea{flex:1;resize:none;min-height:46px;max-height:140px;padding:10px 12px;border-radius:10px}
+  .send{
+    background:var(--accent);color:#0b0e16;border:0;
+    border-radius:10px;padding:12px 20px;font-weight:600;
+    font-size:14px;cursor:pointer;min-height:46px;
+    touch-action:manipulation;display:flex;align-items:center;justify-content:center;
+  }
+  .send:active{transform:scale(0.97)}
+  .hint{max-width:860px;margin:6px auto 0;font-size:11px;color:var(--muted);text-align:center;line-height:1.35}
+
+  /* Phone screen optimizations */
+  @media (max-width:640px){
+    header h1{font-size:15px}
+    .tag{display:none}
+    #settings.open{
+      grid-template-columns:1fr;
+      max-height:65vh;
+      gap:10px;
+      padding:12px 14px;
+    }
+    #chat{padding:12px 10px}
+    .bubble{max-width:96%;padding:12px 14px}
+    .actions .dl, .actions .cancel-btn{flex:1;text-align:center}
+    .send{padding:12px 16px}
+  }
 </style>
 </head>
 <body>
@@ -96,7 +210,7 @@
 <main id="chat">
   <div class="empty" id="empty">
     Describe the video or scene you want to generate.<br>
-    Veo 3.1 creates high-fidelity animated clips chained seamlessly shot-by-shot.
+    Frontier AI models create clips chained seamlessly shot-by-shot.
   </div>
 </main>
 
@@ -141,7 +255,6 @@ function ensureCard(job){
     } catch (e) {
       console.error(e);
     }
-    // Immediately poll to refresh status
     poll(job.id);
   };
   actions.appendChild(cancel);
@@ -158,10 +271,8 @@ function render(job){
   c.log.textContent = job.log.slice(-10).join('\n');
   c.log.scrollTop = c.log.scrollHeight;
 
-  // Show Cancel only while job is actively running
   c.cancel.style.display = (job.status === 'running') ? '' : 'none';
 
-  // Render video player if video is ready (or if partial video exists)
   if (job.video_url){
     const vUrl = job.video_url + '?t=' + (job.done_steps || 1);
     if (c.shown !== vUrl){
@@ -169,6 +280,8 @@ function render(job){
       const v = document.createElement('video');
       v.src = vUrl;
       v.controls = true;
+      v.playsInline = true;
+      v.setAttribute('playsinline', '');
       v.className = 'player';
       const durationSecs = Math.round((job.done_steps || 1) * 8);
       const dl = el('a', 'dl', `Download MP4 (~${durationSecs}s)`);
@@ -216,7 +329,6 @@ $('#form').onsubmit = async e => {
   const prompt = $('#prompt').value.trim();
   if (!prompt) return;
   const secs = +$('#secs').value;
-  const n = Math.ceil(secs / 8);
 
   const body = {
     prompt,

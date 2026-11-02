@@ -1,11 +1,12 @@
 # Secrets & API Keys
 .env
 .env.local
-data/
-*.db
+veo_studio_owner_key.txt
 *owner_key*.txt
 *_key_*.txt
 *.key
+data/
+*.db
 
 # Python virtual environment & cache
 .venv/

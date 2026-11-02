@@ -302,7 +302,7 @@
       <a href="#features">Capabilities</a>
       <a href="#api">REST API</a>
       <a href="#signup" class="btn-nav">🔑 Get Free API Key</a>
-      <a href="http://127.0.0.1:5000" target="_blank" class="btn-nav" style="border-color:var(--accent);color:var(--accent)">Launch Studio &rarr;</a>
+      <a href="studio.html" id="btnNavStudio" class="btn-nav" style="border-color:var(--accent);color:var(--accent);font-weight:700">Launch Studio &rarr;</a>
     </div>
   </div>
 </header>
@@ -542,12 +542,15 @@
 
     <div class="key-result" id="keyResult">
       <h3>🎉 Welcome to the Community Pool!</h3>
-      <p style="font-size:14px;color:#cbd5e1;margin-bottom:12px">Here is your private API Key. Pass it in the <code>Authorization: Bearer &lt;key&gt;</code> header:</p>
+      <p style="font-size:14px;color:#cbd5e1;margin-bottom:12px">Here is your REST API Key. It has been <strong>automatically saved to this browser</strong> for persistent studio access:</p>
       <div class="key-display">
         <span id="keyText">veo_sk_...</span>
         <button type="button" class="copy-pill" id="btnCopyKey">Copy Key</button>
       </div>
-      <p style="font-size:13px;color:var(--text-muted)">Your 30 hrs/week free GPU is now pooled. You can use any provider via <code>POST /api/v1/video/generate</code>.</p>
+      <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap">
+        <a href="studio.html" class="btn-primary" style="text-decoration:none;padding:10px 20px;font-size:13px;display:inline-flex;align-items:center;gap:6px">🚀 Launch Studio Now &rarr;</a>
+      </div>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:12px">Your 30 hrs/week free GPU is now pooled on the Oracle Cloud server. You can generate videos instantly.</p>
     </div>
   </div>
 </section>
@@ -589,6 +592,36 @@ curl -X POST http://127.0.0.1:5050/api/v1/video/generate \
 <script>
 // Point to the live Oracle Cloud production gateway for synchronized global pool stats
 const API_BASE = 'https://144.24.156.140.sslip.io';
+
+// 10-Year Long-Term Browser Persistence
+function setVeoKey(key) {
+  if (!key) return;
+  key = key.trim();
+  try { localStorage.setItem('veo_api_key', key); } catch (e) {}
+  document.cookie = "veo_api_key=" + encodeURIComponent(key) + "; max-age=315360000; path=/; SameSite=Lax";
+}
+
+function getVeoKey() {
+  try {
+    const k = localStorage.getItem('veo_api_key');
+    if (k && k.trim()) return k.trim();
+  } catch (e) {}
+  const match = document.cookie.match(new RegExp('(^|;\\s*)veo_api_key=([^;]+)'));
+  return match ? decodeURIComponent(match[2].trim()) : null;
+}
+
+// Check if user is already logged in and update header
+const savedKey = getVeoKey();
+if (savedKey) {
+  fetch(API_BASE + '/api/v1/auth/me', { headers: { 'Authorization': 'Bearer ' + savedKey } })
+    .then(r => r.json())
+    .then(u => {
+      if (u && u.username) {
+        const btn = document.getElementById('btnNavStudio');
+        if (btn) btn.textContent = 'Launch Studio (@' + u.username + ') →';
+      }
+    }).catch(() => {});
+}
 
 async function refreshStats() {
   try {
@@ -644,6 +677,9 @@ document.getElementById('landingSignupForm').onsubmit = async e => {
     } else {
       document.getElementById('keyText').textContent = d.api_key;
       resBox.style.display = 'block';
+      setVeoKey(d.api_key);
+      const navBtn = document.getElementById('btnNavStudio');
+      if (navBtn) navBtn.textContent = 'Launch Studio (@' + d.username + ') →';
       refreshStats();
       // Update snippet placeholder
       currentKey = d.api_key;

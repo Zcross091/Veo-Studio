@@ -724,6 +724,8 @@ def get_request_auth():
         key = request.headers.get("X-API-Key", "").strip()
     if not key:
         key = request.args.get("api_key", "").strip()
+    if not key:
+        key = request.cookies.get("veo_api_key", "").strip()
     if not key and request.is_json:
         key = (request.get_json(silent=True) or {}).get("api_key", "").strip()
 
@@ -784,6 +786,14 @@ def auth_me():
         "is_active": bool(user.get("is_active", 1)),
         "created_at": user.get("created_at"),
     })
+
+
+@app.get("/studio")
+def studio_page():
+    studio_file = BASE_DIR / "static" / "studio.html"
+    if studio_file.exists():
+        return studio_file.read_text(encoding="utf-8")
+    return "Studio file not found", 404
 
 
 @app.get("/")

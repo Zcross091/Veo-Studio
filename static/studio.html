@@ -1,0 +1,748 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Veo Studio - AI Video Creation Suite</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #090c14;
+    --panel: #0f1422;
+    --card: #151b2e;
+    --line: #222c48;
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --accent-glow: rgba(56, 189, 248, 0.25);
+    --green: #34d399;
+    --red: #f87171;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', -apple-system, sans-serif; }
+  body { background: var(--bg); color: var(--text); height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* Header */
+  header {
+    background: rgba(15, 20, 34, 0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--line);
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 10;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 17px; text-decoration: none; color: #fff; }
+  .brand span { color: var(--accent); }
+  .badge { background: rgba(56, 189, 248, 0.15); color: var(--accent); font-size: 11px; padding: 2px 8px; border-radius: 6px; font-weight: 700; }
+  .header-actions { display: flex; align-items: center; gap: 10px; }
+
+  /* User Status Pill & Dropdown */
+  .user-badge-wrap { position: relative; }
+  .user-pill {
+    background: rgba(52, 211, 153, 0.12);
+    border: 1px solid rgba(52, 211, 153, 0.35);
+    color: var(--green);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all .15s;
+  }
+  .user-pill:hover { background: rgba(52, 211, 153, 0.2); }
+  .user-pill .dot { width: 6px; height: 6px; background: var(--green); border-radius: 50%; box-shadow: 0 0 8px var(--green); }
+  .user-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 240px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.5);
+    z-index: 100;
+  }
+  .user-menu.open { display: block; }
+  .user-menu-item { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .user-menu-item strong { color: #fff; }
+  .menu-btn {
+    width: 100%;
+    padding: 7px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid var(--line);
+    background: var(--card);
+    color: var(--text);
+    margin-top: 6px;
+    text-align: center;
+  }
+  .menu-btn:hover { background: #1c2438; }
+  .menu-btn.danger { color: var(--red); border-color: rgba(248, 113, 113, 0.3); }
+
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--muted);
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all .15s;
+  }
+  .btn-ghost:hover { color: #fff; border-color: var(--muted); }
+
+  /* Settings Panel */
+  #settings {
+    display: none;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    padding: 16px 20px;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    font-size: 12px;
+  }
+  #settings.open { display: grid; }
+  #settings label { display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-weight: 600; }
+  #settings select, #settings input {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 9px 12px;
+    color: #fff;
+    font-size: 13px;
+    outline: none;
+  }
+  #settings select:focus, #settings input:focus { border-color: var(--accent); }
+
+  /* Chat / Generations Feed */
+  #feed {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .empty-state {
+    margin: auto;
+    text-align: center;
+    max-width: 480px;
+    color: var(--muted);
+  }
+  .empty-icon { font-size: 42px; margin-bottom: 12px; }
+  .empty-state h2 { font-size: 20px; color: #fff; font-weight: 700; margin-bottom: 8px; }
+  .empty-state p { font-size: 14px; line-height: 1.5; }
+
+  /* Message Cards */
+  .card-wrap { max-width: 860px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; gap: 12px; }
+  .user-bubble {
+    align-self: flex-end;
+    background: #1e293b;
+    border: 1px solid var(--line);
+    padding: 12px 18px;
+    border-radius: 14px 14px 4px 14px;
+    max-width: 85%;
+    font-size: 14px;
+    line-height: 1.45;
+  }
+  .bot-card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .status-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 600; }
+  .status-text { color: var(--accent); display: flex; align-items: center; gap: 8px; }
+  .progress-bar { height: 6px; background: var(--card); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), #60a5fa); transition: width .3s; }
+  .log-console {
+    background: #06080e;
+    border: 1px solid #1a2236;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #94a3b8;
+    max-height: 120px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+  }
+  .video-preview { border-radius: 10px; overflow: hidden; background: #000; }
+  .video-preview video { width: 100%; max-height: 440px; display: block; border-radius: 10px; }
+  .video-actions { display: flex; gap: 10px; margin-top: 10px; }
+  .btn-download {
+    background: var(--accent);
+    color: #090c14;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* Prompt Input Bar */
+  footer {
+    background: var(--panel);
+    border-top: 1px solid var(--line);
+    padding: 14px 20px max(14px, env(safe-area-inset-bottom));
+    flex-shrink: 0;
+  }
+  .prompt-form {
+    max-width: 860px;
+    margin: 0 auto;
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+  }
+  .prompt-input {
+    flex: 1;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 16px;
+    color: #fff;
+    font-size: 14px;
+    resize: none;
+    min-height: 48px;
+    max-height: 140px;
+    outline: none;
+  }
+  .prompt-input:focus { border-color: var(--accent); }
+  .btn-send {
+    background: var(--accent);
+    color: #090c14;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 24px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all .15s;
+  }
+  .btn-send:hover { opacity: 0.95; transform: translateY(-1px); }
+  .btn-send:active { transform: scale(0.98); }
+  .btn-send:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* ===================================================================== */
+  /* Access Gate Modal (Rest API Key Barrier) */
+  /* ===================================================================== */
+  .gate-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(9, 12, 20, 0.85);
+    backdrop-filter: blur(12px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 9999;
+    transition: opacity .2s, visibility .2s;
+  }
+  .gate-overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+  .gate-card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    max-width: 480px;
+    width: 100%;
+    padding: 32px 28px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+    text-align: center;
+    animation: popIn .25s ease-out;
+  }
+  @keyframes popIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .gate-icon {
+    width: 54px; height: 54px;
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    margin: 0 auto 16px;
+    color: var(--accent);
+  }
+  .gate-card h2 { font-size: 22px; font-weight: 800; margin-bottom: 8px; color: #fff; }
+  .gate-card p { font-size: 13px; color: var(--muted); line-height: 1.5; margin-bottom: 22px; }
+  .gate-form { text-align: left; }
+  .gate-form label { display: block; font-size: 12px; font-weight: 600; color: #cbd5e1; margin-bottom: 6px; }
+  .gate-input-wrap { position: relative; margin-bottom: 16px; }
+  .gate-input {
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: #fff;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    outline: none;
+  }
+  .gate-input:focus { border-color: var(--accent); }
+  .gate-btn {
+    width: 100%;
+    background: var(--accent);
+    color: #090c14;
+    border: none;
+    border-radius: 10px;
+    padding: 13px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .gate-btn:hover { opacity: 0.95; }
+  .gate-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .gate-error {
+    display: none;
+    background: rgba(248, 113, 113, 0.15);
+    border: 1px solid var(--red);
+    color: #fca5a5;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    margin-top: 12px;
+    text-align: center;
+  }
+  .gate-tip {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 20px;
+    text-align: center;
+  }
+  .gate-tip a { color: var(--accent); text-decoration: none; font-weight: 600; }
+  .gate-tip a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header>
+  <a href="index.html" class="brand">⚡ Veo Studio <span>Suite</span> <span class="badge">v2.1</span></a>
+  <div class="header-actions">
+    <div class="user-badge-wrap">
+      <div class="user-pill" id="userPill" style="display:none" onclick="toggleUserMenu()">
+        <span class="dot"></span>
+        <span id="userName">@creator</span>
+      </div>
+      <div class="user-menu" id="userMenu">
+        <div class="user-menu-item">Signed in as <strong id="menuUserName">@creator</strong></div>
+        <div class="user-menu-item">Generations: <strong id="menuGens">0</strong></div>
+        <button class="menu-btn" onclick="copyMyKey()">📋 Copy API Key</button>
+        <button class="menu-btn danger" onclick="logout()">🔒 Switch Key / Log Out</button>
+      </div>
+    </div>
+    <a href="index.html" class="btn-ghost">← Showcase & Pool</a>
+    <button class="btn-ghost" id="toggleSettings" onclick="toggleSettings()">⚙️ Settings</button>
+  </div>
+</header>
+
+<section id="settings">
+  <label>Video Model
+    <select id="selModel">
+      <option value="auto" selected>⚡ Auto (Intelligent Free-Tier Cascade)</option>
+      <option value="kie">⚡ KIE AI (All Models: Kling 2.1, Veo 3.1, Hailuo, Runway)</option>
+      <option value="kaggle">⚡ Kaggle GPU (30 hrs/wk free GPU compute)</option>
+      <option value="openart">⚡ OpenArt AI (40 monthly tokens)</option>
+      <option value="hf">⚡ Hugging Face ZeroGPU (LTX-Video Free Cloud GPU)</option>
+      <option value="kling">⚡ Kling AI (66 daily credits)</option>
+      <option value="luma">⚡ Luma Dream Machine (30 monthly free)</option>
+      <option value="hailuo">⚡ Hailuo / MiniMax Video-01</option>
+      <option value="pollinations">⚡ Pollinations AI (Free Community Tier)</option>
+    </select>
+  </label>
+  <label>Video Length
+    <select id="selSecs">
+      <option value="5" selected>5 seconds (Single Clip)</option>
+      <option value="10">10 seconds</option>
+    </select>
+  </label>
+  <label>Aspect Ratio
+    <select id="selAspect">
+      <option value="16:9" selected>16:9 Landscape</option>
+      <option value="9:16">9:16 Portrait (Mobile/Shorts)</option>
+      <option value="1:1">1:1 Square</option>
+    </select>
+  </label>
+  <label>REST API Key
+    <input id="inApiKey" type="password" placeholder="veo_sk_..." autocomplete="off">
+  </label>
+</section>
+
+<main id="feed">
+  <div class="empty-state" id="emptyState">
+    <div class="empty-icon">🎬</div>
+    <h2>Veo Studio Video Generator</h2>
+    <p>Describe any cinematic scene below. The unified gateway routes through top free-tier providers with automatic failover.</p>
+  </div>
+</main>
+
+<footer>
+  <form class="prompt-form" id="promptForm">
+    <textarea class="prompt-input" id="promptInput" rows="1" placeholder="e.g. A futuristic cyberpunk city in neon rain, cinematic camera sweep, 4k..." required></textarea>
+    <button class="btn-send" id="btnSend" type="submit">⚡ Generate</button>
+  </form>
+</footer>
+
+<!-- Studio Access Gate Modal -->
+<div class="gate-overlay" id="authGate">
+  <div class="gate-card">
+    <div class="gate-icon">🔐</div>
+    <h2>Unlock Veo Studio</h2>
+    <p>Enter your Veo Studio REST API Key to access the creation workspace. Returning users are remembered automatically.</p>
+    <form class="gate-form" id="gateForm">
+      <label>Your REST API Key</label>
+      <div class="gate-input-wrap">
+        <input class="gate-input" id="gateKeyInput" type="password" placeholder="veo_sk_..." required autocomplete="off">
+      </div>
+      <button class="gate-btn" id="btnUnlock" type="submit">⚡ Unlock Studio &rarr;</button>
+      <div class="gate-error" id="gateError"></div>
+    </form>
+    <div class="gate-tip">
+      Don't have an API key? <a href="index.html#signup">Contribute your Kaggle key to get free access &rarr;</a>
+    </div>
+  </div>
+</div>
+
+<script>
+// =============================================================================
+// Cloud Production Gateway (Oracle Cloud 24/7 HTTPS)
+// =============================================================================
+const API_BASE = 'https://144.24.156.140.sslip.io';
+let activeUser = null;
+
+// =============================================================================
+// Long-Term Browser Persistence (10-Year Cookie + LocalStorage)
+// =============================================================================
+function setVeoKey(key) {
+  if (!key) return;
+  key = key.trim();
+  try {
+    localStorage.setItem('veo_api_key', key);
+  } catch (e) {}
+  // 10 years expiration = 315,360,000 seconds
+  document.cookie = "veo_api_key=" + encodeURIComponent(key) + "; max-age=315360000; path=/; SameSite=Lax";
+}
+
+function getVeoKey() {
+  try {
+    const k = localStorage.getItem('veo_api_key');
+    if (k && k.trim()) return k.trim();
+  } catch (e) {}
+
+  const match = document.cookie.match(new RegExp('(^|;\\s*)veo_api_key=([^;]+)'));
+  return match ? decodeURIComponent(match[2].trim()) : null;
+}
+
+function clearVeoKey() {
+  try { localStorage.removeItem('veo_api_key'); } catch (e) {}
+  document.cookie = "veo_api_key=; max-age=0; path=/; SameSite=Lax";
+}
+
+// =============================================================================
+// Authenticate & Verify Key with Oracle Cloud
+// =============================================================================
+async function verifyKey(key) {
+  if (!key) return null;
+  try {
+    const resp = await fetch(API_BASE + '/api/v1/auth/me', {
+      headers: { 'Authorization': 'Bearer ' + key }
+    });
+    if (resp.ok) {
+      return await resp.json();
+    }
+  } catch (err) {
+    console.warn("Backend auth error:", err);
+  }
+  return null;
+}
+
+// Unlock Studio UI
+function unlockWorkspace(user, key) {
+  activeUser = user;
+  document.getElementById('authGate').classList.add('hidden');
+  document.getElementById('userPill').style.display = 'flex';
+  document.getElementById('userName').textContent = '@' + user.username;
+  document.getElementById('menuUserName').textContent = '@' + user.username;
+  document.getElementById('menuGens').textContent = user.generations_count || 0;
+  document.getElementById('inApiKey').value = key;
+}
+
+// Show Gate Modal
+function showGate(errMsg) {
+  document.getElementById('authGate').classList.remove('hidden');
+  document.getElementById('userPill').style.display = 'none';
+  const errBox = document.getElementById('gateError');
+  if (errMsg) {
+    errBox.textContent = errMsg;
+    errBox.style.display = 'block';
+  } else {
+    errBox.style.display = 'none';
+  }
+}
+
+// Initialize Auth on Page Load
+async function initAuth() {
+  // Check URL query param ?api_key=... (e.g. from redirect)
+  const urlParams = new URLSearchParams(window.location.search);
+  const qKey = urlParams.get('api_key');
+  if (qKey) {
+    setVeoKey(qKey);
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+
+  const savedKey = getVeoKey();
+  if (savedKey) {
+    const user = await verifyKey(savedKey);
+    if (user && user.username) {
+      unlockWorkspace(user, savedKey);
+      return;
+    }
+  }
+  showGate();
+}
+
+// Gate Form Submission
+document.getElementById('gateForm').onsubmit = async e => {
+  e.preventDefault();
+  const input = document.getElementById('gateKeyInput');
+  const btn = document.getElementById('btnUnlock');
+  const errBox = document.getElementById('gateError');
+  const key = input.value.trim();
+
+  errBox.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = 'Verifying Key...';
+
+  const user = await verifyKey(key);
+  btn.disabled = false;
+  btn.textContent = '⚡ Unlock Studio →';
+
+  if (user && user.username) {
+    setVeoKey(key);
+    unlockWorkspace(user, key);
+  } else {
+    errBox.textContent = 'Invalid or unrecognized REST API Key. Check the key or sign up for a free one below.';
+    errBox.style.display = 'block';
+  }
+};
+
+// UI Toggles
+function toggleSettings() {
+  document.getElementById('settings').classList.toggle('open');
+}
+
+function toggleUserMenu() {
+  document.getElementById('userMenu').classList.toggle('open');
+}
+
+function copyMyKey() {
+  const k = getVeoKey();
+  if (k) {
+    navigator.clipboard.writeText(k);
+    alert('API Key copied to clipboard!');
+  }
+}
+
+function logout() {
+  if (confirm("Log out of Veo Studio? You will need your REST API key to log back in.")) {
+    clearVeoKey();
+    location.reload();
+  }
+}
+
+// Auto-resize prompt input
+const promptInput = document.getElementById('promptInput');
+promptInput.addEventListener('input', () => {
+  promptInput.style.height = 'auto';
+  promptInput.style.height = Math.min(promptInput.scrollHeight, 140) + 'px';
+});
+
+promptInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    document.getElementById('promptForm').requestSubmit();
+  }
+});
+
+// =============================================================================
+// Video Generation Execution & Status Polling
+// =============================================================================
+document.getElementById('promptForm').onsubmit = async e => {
+  e.preventDefault();
+  const prompt = promptInput.value.trim();
+  if (!prompt) return;
+
+  const key = getVeoKey();
+  if (!key) {
+    showGate("Please enter your REST API key to start generating.");
+    return;
+  }
+
+  const model = document.getElementById('selModel').value;
+  const duration = parseInt(document.getElementById('selSecs').value, 10);
+  const aspect = document.getElementById('selAspect').value;
+
+  const feed = document.getElementById('feed');
+  document.getElementById('emptyState')?.remove();
+
+  // Create UI Card
+  const cardWrap = document.createElement('div');
+  cardWrap.className = 'card-wrap';
+
+  const userBubble = document.createElement('div');
+  userBubble.className = 'user-bubble';
+  userBubble.textContent = prompt;
+
+  const botCard = document.createElement('div');
+  botCard.className = 'bot-card';
+  botCard.innerHTML = `
+    <div class="status-row">
+      <div class="status-text">⚡ Dispatching request...</div>
+      <div style="font-size:11px;color:#94a3b8">Model: ${model.toUpperCase()}</div>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" style="width:10%"></div></div>
+    <div class="log-console">Connecting to Oracle Cloud Gateway (${API_BASE})...\nTarget: ${model} | ${aspect} | ${duration}s</div>
+    <div class="video-container"></div>
+  `;
+
+  cardWrap.appendChild(userBubble);
+  cardWrap.appendChild(botCard);
+  feed.appendChild(cardWrap);
+  feed.scrollTop = feed.scrollHeight;
+
+  promptInput.value = '';
+  promptInput.style.height = 'auto';
+
+  const statusText = botCard.querySelector('.status-text');
+  const progressFill = botCard.querySelector('.progress-fill');
+  const logConsole = botCard.querySelector('.log-console');
+  const videoContainer = botCard.querySelector('.video-container');
+
+  function appendLog(line) {
+    logConsole.textContent += '\n' + line;
+    logConsole.scrollTop = logConsole.scrollHeight;
+  }
+
+  try {
+    const resp = await fetch(API_BASE + '/api/v1/video/generate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + key
+      },
+      body: JSON.stringify({
+        prompt: prompt,
+        provider: model,
+        aspect: aspect,
+        duration: duration
+      })
+    });
+
+    const data = await resp.json();
+    if (!resp.ok) {
+      statusText.innerHTML = '❌ <span style="color:#f87171">Generation Failed</span>';
+      appendLog('Error: ' + (data.error || 'Request rejected by gateway'));
+      return;
+    }
+
+    appendLog('Task Queued on ' + data.provider.toUpperCase() + ' (ID: ' + data.task_id + ')');
+    statusText.textContent = '⏳ Rendering video via ' + data.provider.toUpperCase() + '...';
+    progressFill.style.width = '35%';
+
+    // Instant completion (e.g. OpenArt / Pollinations sync)
+    if (data.status === 'completed' && data.video_url) {
+      finishVideo(data.video_url);
+      return;
+    }
+
+    // Polling loop
+    const taskId = data.task_id;
+    let attempts = 0;
+    const pollInterval = setInterval(async () => {
+      attempts++;
+      try {
+        const pResp = await fetch(API_BASE + '/api/v1/video/status/' + taskId);
+        if (!pResp.ok) return;
+        const pData = await pResp.json();
+
+        if (pData.status === 'completed' && pData.video_url) {
+          clearInterval(pollInterval);
+          finishVideo(pData.video_url);
+        } else if (pData.status === 'failed') {
+          clearInterval(pollInterval);
+          statusText.innerHTML = '❌ <span style="color:#f87171">Render Failed</span>';
+          appendLog('Failure: ' + (pData.error || 'Provider execution error'));
+        } else {
+          const prog = pData.progress || Math.min(85, 30 + attempts * 3);
+          progressFill.style.width = prog + '%';
+          statusText.textContent = `⏳ Rendering (${pData.status || 'in progress'} ${prog}%)...`;
+          if (pData.info) appendLog(pData.info);
+        }
+      } catch (err) {
+        console.warn('Poll error:', err);
+      }
+
+      if (attempts > 120) { // 10 minutes timeout
+        clearInterval(pollInterval);
+        statusText.textContent = '⚠️ Generation timed out';
+      }
+    }, 5000);
+
+    function finishVideo(vUrl) {
+      progressFill.style.width = '100%';
+      statusText.innerHTML = '🎉 <span style="color:#34d399">Generation Complete!</span>';
+      appendLog('Video generated successfully: ' + vUrl);
+
+      // Resolve full video URL
+      const fullUrl = vUrl.startsWith('http') ? vUrl : (API_BASE + vUrl);
+      videoContainer.innerHTML = `
+        <div class="video-preview">
+          <video src="${fullUrl}" controls autoplay loop playsinline></video>
+        </div>
+        <div class="video-actions">
+          <a class="btn-download" href="${fullUrl}" download="veo_${taskId}.mp4" target="_blank">⬇️ Download MP4</a>
+        </div>
+      `;
+      feed.scrollTop = feed.scrollHeight;
+    }
+
+  } catch (err) {
+    statusText.innerHTML = '❌ <span style="color:#f87171">Network Error</span>';
+    appendLog('Failed to connect to gateway: ' + err.message);
+  }
+};
+
+// Start Authentication
+initAuth();
+</script>
+</body>
+</html>

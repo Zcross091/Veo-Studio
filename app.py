@@ -867,6 +867,69 @@ def landing():
     return landing_file.read_text(encoding="utf-8")
 
 
+@app.get("/studio")
+def studio():
+    studio_file = BASE / "static" / "studio.html"
+    return studio_file.read_text(encoding="utf-8")
+
+
+@app.get("/api/v1/auth/me")
+def api_auth_me():
+    import auth_db
+    auth_header = request.headers.get("Authorization", "").strip()
+    key = None
+    if auth_header.startswith("Bearer "):
+        key = auth_header[7:].strip()
+    elif not key:
+        key = request.headers.get("X-API-Key", "").strip()
+    if not key:
+        key = request.args.get("api_key", "").strip()
+    if not key:
+        key = request.cookies.get("veo_api_key", "").strip()
+    user = auth_db.validate_api_key(key) if key else None
+    if not user:
+        return jsonify(error="Valid API key required"), 401
+    return jsonify({
+        "username": user.get("username"),
+        "generations_count": user.get("generations_count", 0),
+        "is_active": bool(user.get("is_active", 1)),
+        "created_at": user.get("created_at"),
+    })
+
+
+@app.get("/api/v1/auth/stats")
+def api_auth_stats():
+    import auth_db
+    return jsonify({
+        "status": "active",
+        **auth_db.get_pool_stats(),
+    })
+
+
+@app.post("/api/v1/auth/signup")
+def api_auth_signup():
+    import auth_db
+    data = request.get_json(force=True, silent=True) or {}
+    try:
+        res = auth_db.register_user(
+            data.get("username", "").strip(),
+            data.get("kaggle_username", "").strip(),
+            data.get("kaggle_token", "").strip(),
+        )
+        return jsonify({
+            "status": "success",
+            "username": res["username"],
+            "api_key": res["api_key"],
+            "kaggle_username": res["kaggle_username"],
+            "message": "Welcome to Veo Studio Community GPU Pool!",
+            "compute_contribution": "30 hrs/week free GPU compute added to shared pool",
+        }), 201
+    except ValueError as ve:
+        return jsonify(error=str(ve)), 400
+    except Exception as e:
+        return jsonify(error=f"Registration failed: {e}"), 500
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "5000"))
     import socket

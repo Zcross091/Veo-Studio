@@ -1003,16 +1003,20 @@ def generate_video():
             else:
                 return jsonify(error=f"Unsupported provider: {cand}"), 400
 
-            task_record = {
-                "id": tid,
-                "provider": cand,
-                "created_at": time.time(),
-                "status": "queued",
-                "progress": 0,
-                "video_url": None,
-                "error": None,
-            }
-            TASKS[tid] = task_record
+            if tid not in TASKS:
+                TASKS[tid] = {
+                    "id": tid,
+                    "provider": cand,
+                    "created_at": time.time(),
+                    "status": "queued",
+                    "progress": 0,
+                    "video_url": None,
+                    "error": None,
+                }
+            else:
+                TASKS[tid].setdefault("status", "queued")
+                TASKS[tid].setdefault("progress", 0)
+                TASKS[tid].setdefault("created_at", time.time())
             return jsonify({
                 "task_id": tid,
                 "provider": cand,

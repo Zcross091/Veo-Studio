@@ -1,0 +1,14 @@
+# Robots.txt for Veo Studio
+User-agent: *
+Allow: /
+Allow: /index.html
+Allow: /studio.html
+Allow: /sitemap.xml
+Allow: /llms.txt
+Allow: /site.webmanifest
+
+Disallow: /outputs/
+Disallow: /_kaggle_runs/
+Disallow: /data/
+
+Sitemap: https://zcross091.github.io/Veo-Studio/sitemap.xml

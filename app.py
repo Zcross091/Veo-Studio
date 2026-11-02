@@ -889,11 +889,85 @@ def api_auth_me():
     user = auth_db.validate_api_key(key) if key else None
     if not user:
         return jsonify(error="Valid API key required"), 401
+
+    device_id = (
+        request.headers.get("X-Device-Id")
+        or request.cookies.get("veo_device_id")
+        or request.args.get("device_id")
+        or ""
+    ).strip()
+
+    is_allowed, dev_msg, dev_count = auth_db.check_or_register_device(
+        user_id=user["id"],
+        device_id=device_id,
+        device_label=request.headers.get("User-Agent", "")[:120]
+    )
+    if not is_allowed:
+        return jsonify({
+            "error": "Device limit reached",
+            "message": dev_msg,
+            "device_count": dev_count,
+            "max_devices": 2
+        }), 403
+
+    devices = auth_db.get_user_devices(user["id"])
     return jsonify({
         "username": user.get("username"),
         "generations_count": user.get("generations_count", 0),
         "is_active": bool(user.get("is_active", 1)),
         "created_at": user.get("created_at"),
+        "devices": devices,
+        "device_count": len(devices),
+        "max_devices": 2,
+    })
+
+
+@app.post("/api/v1/auth/reset-devices")
+def api_auth_reset_devices():
+    import auth_db
+    auth_header = request.headers.get("Authorization", "").strip()
+    key = None
+    if auth_header.startswith("Bearer "):
+        key = auth_header[7:].strip()
+    elif not key:
+        key = request.headers.get("X-API-Key", "").strip()
+    if not key:
+        key = request.args.get("api_key", "").strip()
+    if not key:
+        key = request.cookies.get("veo_api_key", "").strip()
+    user = auth_db.validate_api_key(key) if key else None
+    if not user:
+        return jsonify(error="Valid API key required"), 401
+    count = auth_db.reset_user_devices(user["id"])
+    return jsonify({
+        "status": "success",
+        "message": f"Successfully reset {count} device(s). You can now link up to 2 new devices with this key.",
+        "max_devices": 2,
+        "device_count": 0,
+    })
+
+
+@app.get("/api/v1/auth/devices")
+def api_auth_list_devices():
+    import auth_db
+    auth_header = request.headers.get("Authorization", "").strip()
+    key = None
+    if auth_header.startswith("Bearer "):
+        key = auth_header[7:].strip()
+    elif not key:
+        key = request.headers.get("X-API-Key", "").strip()
+    if not key:
+        key = request.args.get("api_key", "").strip()
+    if not key:
+        key = request.cookies.get("veo_api_key", "").strip()
+    user = auth_db.validate_api_key(key) if key else None
+    if not user:
+        return jsonify(error="Valid API key required"), 401
+    devices = auth_db.get_user_devices(user["id"])
+    return jsonify({
+        "devices": devices,
+        "device_count": len(devices),
+        "max_devices": 2,
     })
 
 

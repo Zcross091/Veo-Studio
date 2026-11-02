@@ -1,0 +1,18 @@
+# Robots.txt for Veo Studio
+# Allows indexing of public documentation, showcase, and studio
+
+User-agent: *
+Allow: /
+Allow: /index.html
+Allow: /studio.html
+Allow: /sitemap.xml
+Allow: /llms.txt
+Allow: /site.webmanifest
+
+# Prevent crawling of internal runs or raw temporary generation folders
+Disallow: /outputs/
+Disallow: /_kaggle_runs/
+Disallow: /data/
+
+# Canonical Sitemap Location
+Sitemap: https://zcross091.github.io/Veo-Studio/sitemap.xml

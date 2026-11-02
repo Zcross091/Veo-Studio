@@ -1,0 +1,24 @@
+# Veo Studio — Universal AI Video Hub & Community GPU Gateway
+
+> Veo Studio is an open-source platform and unified REST API that orchestrates video generation across 8 top free & freemium AI providers with intelligent auto-cascade and a community-pooled Kaggle GPU compute network.
+
+## Primary Capabilities
+- Multi-Scene AI Video Director: Automated story planning, scene generation, and video stitching for 1-3 minute continuous videos.
+- Intelligent Auto-Cascade: Automatically tries top providers in order (KIE AI, Kaggle Cloud GPU, OpenArt, Hugging Face ZeroGPU, Kling 2.1, Luma Dream Machine, MiniMax Hailuo, Pollinations), seamlessly falling over if quotas or credits are depleted.
+- Reciprocal Community GPU Pool: Users contribute their free Kaggle API token (30 hrs/week NVIDIA T4/P100 compute) to receive instant unlimited REST API access.
+- Multi-Device Support: Each issued REST API key (`veo_sk_...`) is permitted on up to 2 simultaneous devices.
+
+## REST API Specification
+- Production Host: `https://144.24.156.140.sslip.io`
+- Generate Video: `POST /api/v1/video/generate`
+  - Headers: `Authorization: Bearer <key>`, `X-Device-Id: <id>`, `Content-Type: application/json`
+  - Body: `{"prompt": "...", "provider": "auto", "aspect": "16:9", "duration": 5}`
+- Status Polling: `GET /api/v1/video/status/<task_id>`
+- Auth & Quotas: `GET /api/v1/auth/me`
+- Community Stats: `GET /api/v1/auth/stats`
+- Register / Free Key: `POST /api/v1/auth/signup`
+
+## Web App Links
+- Showcase & Public Signup: https://zcross091.github.io/Veo-Studio/
+- Creation Studio: https://zcross091.github.io/Veo-Studio/studio.html
+- GitHub Repository: https://github.com/Zcross091/Veo-Studio

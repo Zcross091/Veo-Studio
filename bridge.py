@@ -776,15 +776,69 @@ def pool_stats():
 
 @app.get("/api/v1/auth/me")
 def auth_me():
-    """Verify an API key and return profile status."""
+    """Verify an API key and return profile status and linked devices (enforces max 2 devices)."""
     user = get_request_auth()
     if not user:
         return jsonify(error="Valid API key required via Authorization header"), 401
+
+    device_id = (
+        request.headers.get("X-Device-Id")
+        or request.cookies.get("veo_device_id")
+        or request.args.get("device_id")
+        or ""
+    ).strip()
+
+    is_allowed, dev_msg, dev_count = auth_db.check_or_register_device(
+        user_id=user["id"],
+        device_id=device_id,
+        device_label=request.headers.get("User-Agent", "")[:120]
+    )
+    if not is_allowed:
+        return jsonify({
+            "error": "Device limit reached",
+            "message": dev_msg,
+            "device_count": dev_count,
+            "max_devices": 2
+        }), 403
+
+    devices = auth_db.get_user_devices(user["id"])
     return jsonify({
         "username": user.get("username"),
         "generations_count": user.get("generations_count", 0),
         "is_active": bool(user.get("is_active", 1)),
         "created_at": user.get("created_at"),
+        "devices": devices,
+        "device_count": len(devices),
+        "max_devices": 2,
+    })
+
+
+@app.post("/api/v1/auth/reset-devices")
+def reset_devices():
+    """Reset all active devices linked to this API key (allows switching to new devices)."""
+    user = get_request_auth()
+    if not user:
+        return jsonify(error="Valid API key required"), 401
+    count = auth_db.reset_user_devices(user["id"])
+    return jsonify({
+        "status": "success",
+        "message": f"Successfully reset {count} device(s). You can now link up to 2 new devices with this key.",
+        "max_devices": 2,
+        "device_count": 0,
+    })
+
+
+@app.get("/api/v1/auth/devices")
+def list_devices():
+    """List all registered devices linked to this API key."""
+    user = get_request_auth()
+    if not user:
+        return jsonify(error="Valid API key required"), 401
+    devices = auth_db.get_user_devices(user["id"])
+    return jsonify({
+        "devices": devices,
+        "device_count": len(devices),
+        "max_devices": 2,
     })
 
 
@@ -971,9 +1025,10 @@ def serve_video(filename):
 @app.post("/api/v1/video/generate")
 def generate_video():
     """Single unified endpoint for all 7 free video providers with auto-cascade and API key auth."""
-    # API Key Authentication
+    # API Key Authentication & Device Authorization
     auth_user = get_request_auth()
-    is_local = request.remote_addr in ("127.0.0.1", "localhost", "::1")
+    is_forwarded = bool(request.headers.get("X-Forwarded-For"))
+    is_local = (request.remote_addr in ("127.0.0.1", "localhost", "::1")) and not is_forwarded
     if not auth_user and not is_local:
         return jsonify(
             error="API key required for public access. Get your free API key by contributing a Kaggle GPU token at /signup",
@@ -981,6 +1036,25 @@ def generate_video():
         ), 401
 
     if auth_user and auth_user.get("id"):
+        device_id = (
+            request.headers.get("X-Device-Id")
+            or request.cookies.get("veo_device_id")
+            or request.args.get("device_id")
+            or ""
+        ).strip()
+        is_allowed, dev_msg, dev_count = auth_db.check_or_register_device(
+            user_id=auth_user["id"],
+            device_id=device_id,
+            device_label=request.headers.get("User-Agent", "")[:120]
+        )
+        if not is_allowed:
+            return jsonify({
+                "error": "Device limit reached",
+                "message": dev_msg,
+                "device_count": dev_count,
+                "max_devices": 2
+            }), 403
+
         auth_db.increment_user_usage(auth_user["id"])
 
     data = request.get_json(force=True, silent=True) or {}

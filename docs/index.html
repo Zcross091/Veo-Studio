@@ -3,7 +3,78 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Veo Studio - Universal Free-Tier AI Video Hub</title>
+<title>Veo Studio - Universal Free-Tier AI Video Hub & REST API</title>
+<meta name="description" content="Veo Studio is a free universal AI video creation studio and REST API powered by Kaggle 30 hrs/week GPU pool, KIE AI, Kling 2.1 Master, Google Veo, Luma, MiniMax, and Hugging Face.">
+<meta name="keywords" content="ai video generator, free ai video generator, google veo api, kling 2.1 master, kaggle free gpu video, text to video ai, image to video ai, openart video, luma dream machine, minimax hailuo, pollinations ai">
+<meta name="author" content="Veo Studio Open-Source Community">
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+<link rel="canonical" href="https://zcross091.github.io/Veo-Studio/">
+<link rel="manifest" href="site.webmanifest">
+<link rel="sitemap" type="application/xml" title="Sitemap" href="sitemap.xml">
+<link rel="author" href="humans.txt">
+
+<!-- Open Graph / Facebook -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://zcross091.github.io/Veo-Studio/">
+<meta property="og:title" content="Veo Studio - Universal Free AI Video Hub & REST API">
+<meta property="og:description" content="Generate cinematic AI videos with Kaggle GPU pool, KIE AI, Kling 2.1, Veo 3.1, Luma, and MiniMax. Zero-cost community compute.">
+<meta property="og:image" content="https://zcross091.github.io/Veo-Studio/site.webmanifest">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:url" content="https://zcross091.github.io/Veo-Studio/">
+<meta name="twitter:title" content="Veo Studio - Universal Free AI Video Hub & REST API">
+<meta name="twitter:description" content="Generate cinematic AI videos with Kaggle GPU pool, KIE AI, Kling 2.1, Veo 3.1, Luma, and MiniMax.">
+
+<!-- JSON-LD Structured Data for Google Rich Results -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "name": "Veo Studio",
+      "applicationCategory": "MultimediaApplication",
+      "operatingSystem": "Web, Windows, macOS, Linux, iOS, Android",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "description": "Universal open-source AI video creation suite and unified REST gateway pooling free GPU compute across Kaggle, KIE AI, Kling, Luma, and MiniMax.",
+      "url": "https://zcross091.github.io/Veo-Studio/"
+    },
+    {
+      "@type": "WebApplication",
+      "name": "Veo Studio Web App",
+      "url": "https://zcross091.github.io/Veo-Studio/studio.html",
+      "browserRequirements": "Requires JavaScript. Requires HTML5.",
+      "applicationSubCategory": "AI Video Generator"
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "How does Veo Studio provide free AI video generation?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Veo Studio pools 30 hours/week of free Kaggle GPU quota contributed reciprocally by community creators, together with KIE AI, Kling 2.1 Master, OpenArt, Hugging Face ZeroGPU, and Pollinations."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How many devices can use one Veo Studio REST API key?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Each REST API key supports up to 2 active devices simultaneously. You can download your key file (.txt) and reset linked devices at any time in settings."
+          }
+        }
+      ]
+    }
+  ]
+}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -549,8 +620,12 @@
       </div>
       <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap">
         <a href="studio.html" class="btn-primary" style="text-decoration:none;padding:10px 20px;font-size:13px;display:inline-flex;align-items:center;gap:6px">🚀 Launch Studio Now &rarr;</a>
+        <button type="button" class="btn-secondary" id="btnDownloadKey" style="padding:10px 18px;font-size:13px;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:10px;color:#f1f5f9;cursor:pointer;display:inline-flex;align-items:center;gap:6px">📥 Download Key File (.txt)</button>
       </div>
-      <p style="font-size:12px;color:var(--text-muted);margin-top:12px">Your 30 hrs/week free GPU is now pooled on the Oracle Cloud server. You can generate videos instantly.</p>
+      <div style="background:rgba(56,189,248,0.07);border:1px solid rgba(56,189,248,0.22);border-radius:8px;padding:12px 14px;margin-top:14px;font-size:12px;color:#cbd5e1;line-height:1.6">
+        <strong style="color:var(--accent)">📱 2-Device Policy:</strong> This key can be active on up to <strong>2 devices simultaneously</strong> (e.g. your PC and mobile device). Download your key file so you can easily link your second device or restore access if browser cache is cleared.
+      </div>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:10px">Your 30 hrs/week free GPU is now pooled on the Oracle Cloud server. You can generate videos instantly.</p>
     </div>
   </div>
 </section>
@@ -650,6 +725,59 @@ async function refreshStats() {
 }
 refreshStats();
 
+function getDeviceId() {
+  let devId = localStorage.getItem('veo_device_id');
+  if (!devId) {
+    devId = 'dev_' + (window.crypto && crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '') : Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15));
+    localStorage.setItem('veo_device_id', devId);
+  }
+  return devId;
+}
+
+function downloadKeyFile(username, key) {
+  const content = `=======================================================
+VEO STUDIO - PRIVATE REST API KEY CREDENTIALS
+=======================================================
+Username:      ${username || "community_creator"}
+REST API Key:  ${key}
+Issued:        ${new Date().toISOString()}
+
+2-DEVICE POLICY:
+This REST API key can be active on up to 2 devices simultaneously
+(e.g., your Desktop PC and your Phone or Laptop).
+If you switch to a 3rd device, open Studio Settings -> "Reset Devices"
+to clear active sessions and authorize the new device.
+
+ENDPOINTS & ACCESS:
+- Web Studio:    https://zcross091.github.io/Veo-Studio/studio.html
+- REST Gateway:  https://144.24.156.140.sslip.io/api/v1/video/generate
+- Headers:
+    Authorization: Bearer ${key}
+    X-Device-Id: <unique-device-id>
+    Content-Type: application/json
+
+EXAMPLE CURL:
+curl -X POST https://144.24.156.140.sslip.io/api/v1/video/generate \\
+  -H "Authorization: Bearer ${key}" \\
+  -H "X-Device-Id: dev_my_primary_pc" \\
+  -H "Content-Type: application/json" \\
+  -d '{"prompt": "Cinematic shot of ancient ruins at dusk", "provider": "auto"}'
+
+Keep this file safe and private. Never commit to public repositories.
+=======================================================
+`;
+  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `veo_studio_key_${(username || "user").replace(/[^a-zA-Z0-9_-]/g, "")}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+let lastRegisteredUsername = '';
+
 document.getElementById('landingSignupForm').onsubmit = async e => {
   e.preventDefault();
   const btn = document.getElementById('btnSubmitKey');
@@ -660,12 +788,16 @@ document.getElementById('landingSignupForm').onsubmit = async e => {
   btn.disabled = true;
   btn.textContent = 'Verifying Token with Kaggle API...';
 
+  const userVal = document.getElementById('in_user').value.trim();
   try {
     const resp = await fetch(API_BASE + '/api/v1/auth/signup', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Device-Id': getDeviceId()
+      },
       body: JSON.stringify({
-        username: document.getElementById('in_user').value.trim(),
+        username: userVal,
         kaggle_username: document.getElementById('in_kuser').value.trim(),
         kaggle_token: document.getElementById('in_ktoken').value.trim()
       })
@@ -675,6 +807,7 @@ document.getElementById('landingSignupForm').onsubmit = async e => {
       errBox.textContent = d.error || 'Failed to authenticate Kaggle token.';
       errBox.style.display = 'block';
     } else {
+      lastRegisteredUsername = d.username || userVal;
       document.getElementById('keyText').textContent = d.api_key;
       resBox.style.display = 'block';
       setVeoKey(d.api_key);
@@ -692,6 +825,11 @@ document.getElementById('landingSignupForm').onsubmit = async e => {
     btn.disabled = false;
     btn.textContent = '⚡ Contribute 30 hrs GPU & Unlock API Key';
   }
+};
+
+document.getElementById('btnDownloadKey').onclick = () => {
+  const k = document.getElementById('keyText').textContent;
+  downloadKeyFile(lastRegisteredUsername || 'community_user', k);
 };
 
 let currentKey = 'YOUR_VEO_API_KEY';

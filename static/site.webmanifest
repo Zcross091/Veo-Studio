@@ -1,0 +1,19 @@
+{
+  "name": "Veo Studio - Universal AI Video Hub",
+  "short_name": "Veo Studio",
+  "description": "Generate cinematic 1-3 minute multi-shot AI videos using Google Veo 3.1, Kling 2.1, Hailuo, and pooled Kaggle GPU compute with automatic failover.",
+  "start_url": "/Veo-Studio/",
+  "scope": "/Veo-Studio/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#07090e",
+  "theme_color": "#07090e",
+  "lang": "en",
+  "categories": [
+    "multimedia",
+    "productivity",
+    "video",
+    "entertainment",
+    "utilities"
+  ]
+}

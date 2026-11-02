@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Veo Studio - Redirecting...</title>
+<script>
+  // Single Page App Router for GitHub Pages
+  var path = window.location.pathname;
+  var repoName = '/Veo-Studio';
+  var sub = path.replace(repoName, '').replace(/^\//, '');
+
+  if (sub.startsWith('studio') || sub.startsWith('create') || sub.startsWith('app')) {
+    window.location.replace(repoName + '/studio.html' + window.location.search + window.location.hash);
+  } else if (sub.startsWith('signup')) {
+    window.location.replace(repoName + '/index.html#signup');
+  } else {
+    window.location.replace(repoName + '/index.html' + window.location.search + window.location.hash);
+  }
+</script>
+</head>
+<body style="background:#0b0e14;color:#94a3b8;font-family:sans-serif;text-align:center;padding:50px;">
+  <h2>Redirecting to Veo Studio...</h2>
+  <p><a href="/Veo-Studio/" style="color:#38bdf8">Click here if not redirected automatically &rarr;</a></p>
+</body>
+</html>

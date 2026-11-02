@@ -12,25 +12,20 @@ A ChatGPT-style local web UI that turns a single prompt into a 1–3 minute anim
 - **Instant Cancellation:** Interrupt generation at any second without freezing the queue.
 - **Partial Video Saved:** Every completed clip is joined immediately into an MP4 and previewable in real-time.
 
-## Quick Start
+## 1-Click Quick Start
 
-1. Install Python 3.10 or newer (on Windows, ensure "Add Python to PATH" is checked).
-2. Install dependencies:
-   ```bash
-   pip install -U -r requirements.txt
-   ```
-3. Copy `.env.example` to `.env` and fill in your keys:
-   ```env
-   GENRELAY_API="sk-..."
-   FAL.AI_API="fal_sk_..."
-   GEMINI_API_KEY="..."
-   ```
-   *(Or enter them directly into the Settings panel in the web UI).*
-4. Run the server:
-   ```bash
-   python app.py
-   ```
-5. Open [http://127.0.0.1:5000](http://127.0.0.1:5000) in your browser.
+On Windows, simply double-click:
+```cmd
+run.bat
+```
+*(Or run `python run.py` from your terminal).*
+
+It automatically:
+1. Creates and activates the Python virtual environment (`.venv`).
+2. Installs and verifies all dependencies.
+3. Prepares the OpenArt CLI tool.
+4. Starts the web server (accessible from both your PC and your phone).
+5. Opens your web browser automatically to the studio UI!
 
 ## How it works
 

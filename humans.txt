@@ -1,0 +1,14 @@
+/* TEAM */
+Author: Zcross & Veo Studio Community
+Website: https://zcross091.github.io/Veo-Studio/
+Location: Global Open-Source
+
+/* THANKS */
+To all community members contributing free Kaggle GPU compute to the pool.
+Google Gemini, KIE AI, Kling AI, MiniMax, Luma, Hugging Face, OpenArt, and Pollinations.
+
+/* SITE */
+Standards: HTML5, CSS3, ES2024, Schema.org JSON-LD
+Components: Plus Jakarta Sans, JetBrains Mono
+Software: Python 3.12, Flask, FFmpeg, SQLite3
+Hosted On: GitHub Pages & Oracle Cloud Infrastructure

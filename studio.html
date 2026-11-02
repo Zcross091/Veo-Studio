@@ -3,7 +3,29 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Veo Studio - AI Video Creation Suite</title>
+<title>Veo Studio - Cinematic AI Video Creation Suite & REST API</title>
+<meta name="description" content="Veo Studio is an in-browser AI video creation suite and unified REST gateway powered by Kaggle 30 hrs/week GPU pool, KIE AI, Kling 2.1 Master, Google Veo, Luma, MiniMax, and Hugging Face.">
+<meta name="keywords" content="ai video studio, generate ai video, text to video, free ai video creator, google veo, kling 2.1, kaggle gpu, web video editor">
+<meta name="author" content="Veo Studio Open-Source Community">
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+<link rel="canonical" href="https://zcross091.github.io/Veo-Studio/studio.html">
+<link rel="manifest" href="site.webmanifest">
+<link rel="sitemap" type="application/xml" title="Sitemap" href="sitemap.xml">
+<link rel="author" href="humans.txt">
+
+<!-- Open Graph / Facebook -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://zcross091.github.io/Veo-Studio/studio.html">
+<meta property="og:title" content="Veo Studio - Cinematic AI Video Creation Suite">
+<meta property="og:description" content="Generate cinematic AI videos with Kaggle GPU pool, KIE AI, Kling 2.1, Veo 3.1, Luma, and MiniMax. Zero-cost community compute.">
+<meta property="og:image" content="https://zcross091.github.io/Veo-Studio/site.webmanifest">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:url" content="https://zcross091.github.io/Veo-Studio/studio.html">
+<meta name="twitter:title" content="Veo Studio - Cinematic AI Video Creation Suite">
+<meta name="twitter:description" content="Generate cinematic AI videos with Kaggle GPU pool, KIE AI, Kling 2.1, Veo 3.1, Luma, and MiniMax.">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -356,7 +378,10 @@
       <div class="user-menu" id="userMenu">
         <div class="user-menu-item">Signed in as <strong id="menuUserName">@creator</strong></div>
         <div class="user-menu-item">Generations: <strong id="menuGens">0</strong></div>
+        <div class="user-menu-item">Devices: <strong id="menuDevices">1 / 2 Active</strong></div>
         <button class="menu-btn" onclick="copyMyKey()">📋 Copy API Key</button>
+        <button class="menu-btn" onclick="downloadCurrentKey()">📥 Download Key File (.txt)</button>
+        <button class="menu-btn" onclick="resetActiveDevices()">📱 Reset Linked Devices</button>
         <button class="menu-btn danger" onclick="logout()">🔒 Switch Key / Log Out</button>
       </div>
     </div>
@@ -439,6 +464,117 @@
 const API_BASE = 'https://144.24.156.140.sslip.io';
 let activeUser = null;
 
+function getDeviceId() {
+  let devId = localStorage.getItem('veo_device_id');
+  if (!devId) {
+    devId = 'dev_' + (window.crypto && crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '') : Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15));
+    localStorage.setItem('veo_device_id', devId);
+  }
+  return devId;
+}
+
+function downloadKeyFile(username, key) {
+  const content = `=======================================================
+VEO STUDIO - PRIVATE REST API KEY CREDENTIALS
+=======================================================
+Username:      ${username || "community_creator"}
+REST API Key:  ${key}
+Issued:        ${new Date().toISOString()}
+
+2-DEVICE POLICY:
+This REST API key can be active on up to 2 devices simultaneously
+(e.g., your Desktop PC and your Phone or Laptop).
+If you switch to a 3rd device, open Studio Settings -> "Reset Devices"
+to clear active sessions and authorize the new device.
+
+ENDPOINTS & ACCESS:
+- Web Studio:    https://zcross091.github.io/Veo-Studio/studio.html
+- REST Gateway:  https://144.24.156.140.sslip.io/api/v1/video/generate
+- Headers:
+    Authorization: Bearer ${key}
+    X-Device-Id: <unique-device-id>
+    Content-Type: application/json
+
+EXAMPLE CURL:
+curl -X POST https://144.24.156.140.sslip.io/api/v1/video/generate \\
+  -H "Authorization: Bearer ${key}" \\
+  -H "X-Device-Id: dev_my_primary_pc" \\
+  -H "Content-Type: application/json" \\
+  -d '{"prompt": "Cinematic shot of ancient ruins at dusk", "provider": "auto"}'
+
+Keep this file safe and private. Never commit to public repositories.
+=======================================================
+`;
+  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `veo_studio_key_${(username || "user").replace(/[^a-zA-Z0-9_-]/g, "")}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+function downloadCurrentKey() {
+  const k = getVeoKey();
+  const u = (activeUser && activeUser.username) || 'creator';
+  if (k) downloadKeyFile(u, k);
+}
+
+async function resetActiveDevices() {
+  const k = getVeoKey();
+  if (!k) return;
+  if (!confirm("Reset all active devices linked to this REST key?\n\nThis will free both device slots, allowing you to link this current device and one additional device.")) {
+    return;
+  }
+  try {
+    const resp = await fetch(API_BASE + '/api/v1/auth/reset-devices', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + k,
+        'X-Device-Id': getDeviceId()
+      }
+    });
+    const data = await resp.json();
+    if (resp.ok) {
+      alert("✅ Devices reset successfully! This device is now registered as Device 1 of 2.");
+      location.reload();
+    } else {
+      alert("Failed to reset devices: " + (data.error || 'Unknown error'));
+    }
+  } catch (e) {
+    alert("Network error: " + e.message);
+  }
+}
+
+async function resetDevicesFromGate(key) {
+  if (!key) return;
+  try {
+    const resp = await fetch(API_BASE + '/api/v1/auth/reset-devices', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + key,
+        'X-Device-Id': getDeviceId()
+      }
+    });
+    if (resp.ok) {
+      alert("✅ Devices reset! Unlocking studio now...");
+      setVeoKey(key);
+      const user = await verifyKey(key);
+      if (user && user.username) {
+        unlockWorkspace(user, key);
+      } else {
+        location.reload();
+      }
+    } else {
+      const err = await resp.json();
+      alert("Failed to reset: " + (err.error || 'Check key'));
+    }
+  } catch (e) {
+    alert("Network error: " + e.message);
+  }
+}
+
 // =============================================================================
 // Long-Term Browser Persistence (10-Year Cookie + LocalStorage)
 // =============================================================================
@@ -474,10 +610,17 @@ async function verifyKey(key) {
   if (!key) return null;
   try {
     const resp = await fetch(API_BASE + '/api/v1/auth/me', {
-      headers: { 'Authorization': 'Bearer ' + key }
+      headers: {
+        'Authorization': 'Bearer ' + key,
+        'X-Device-Id': getDeviceId()
+      }
     });
     if (resp.ok) {
       return await resp.json();
+    }
+    if (resp.status === 403) {
+      const errData = await resp.json();
+      return { isBlocked: true, error: errData.error, message: errData.message };
     }
   } catch (err) {
     console.warn("Backend auth error:", err);
@@ -493,15 +636,21 @@ function unlockWorkspace(user, key) {
   document.getElementById('userName').textContent = '@' + user.username;
   document.getElementById('menuUserName').textContent = '@' + user.username;
   document.getElementById('menuGens').textContent = user.generations_count || 0;
+  const devCount = user.device_count || (user.devices ? user.devices.length : 1);
+  const devEl = document.getElementById('menuDevices');
+  if (devEl) devEl.textContent = `${devCount} / 2 Active`;
   document.getElementById('inApiKey').value = key;
 }
 
 // Show Gate Modal
-function showGate(errMsg) {
+function showGate(errMsg, blockedInfo, key) {
   document.getElementById('authGate').classList.remove('hidden');
   document.getElementById('userPill').style.display = 'none';
   const errBox = document.getElementById('gateError');
-  if (errMsg) {
+  if (blockedInfo) {
+    errBox.innerHTML = `<strong>⚠️ ${blockedInfo.error || 'Device Limit Reached'}</strong><br><span style="font-size:11px">${blockedInfo.message || 'Maximum 2 devices per key.'}</span><br><button type="button" class="gate-btn" style="margin-top:10px;padding:8px 12px;font-size:12px;background:#38bdf8;color:#090c14" onclick="resetDevicesFromGate('${key}')">📱 Reset Devices & Link This Device</button>`;
+    errBox.style.display = 'block';
+  } else if (errMsg) {
     errBox.textContent = errMsg;
     errBox.style.display = 'block';
   } else {
@@ -522,6 +671,10 @@ async function initAuth() {
   const savedKey = getVeoKey();
   if (savedKey) {
     const user = await verifyKey(savedKey);
+    if (user && user.isBlocked) {
+      showGate(null, user, savedKey);
+      return;
+    }
     if (user && user.username) {
       unlockWorkspace(user, savedKey);
       return;
@@ -546,7 +699,9 @@ document.getElementById('gateForm').onsubmit = async e => {
   btn.disabled = false;
   btn.textContent = '⚡ Unlock Studio →';
 
-  if (user && user.username) {
+  if (user && user.isBlocked) {
+    showGate(null, user, key);
+  } else if (user && user.username) {
     setVeoKey(key);
     unlockWorkspace(user, key);
   } else {
@@ -657,7 +812,8 @@ document.getElementById('promptForm').onsubmit = async e => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + key
+        'Authorization': 'Bearer ' + key,
+        'X-Device-Id': getDeviceId()
       },
       body: JSON.stringify({
         prompt: prompt,
@@ -746,3 +902,4 @@ initAuth();
 </script>
 </body>
 </html>
+

@@ -105,7 +105,7 @@ def get_env_credentials():
         "kling_token": os.environ.get("KLING_TOKEN") or os.environ.get("KLING_API") or os.environ.get("KLING_API_KEY") or os.environ.get("KLING_COOKIE") or os.environ.get("VEO_STUDIO_API"),
         "luma_key": os.environ.get("LUMA_API_KEY") or os.environ.get("LUMA_KEY") or os.environ.get("LUMA_TOKEN"),
         "hailuo_key": os.environ.get("MINIMAX_API_KEY") or os.environ.get("HAILUO_API_KEY") or os.environ.get("HAILUO_TOKEN"),
-        "kaggle_user": os.environ.get("KAGGLE_USERNAME") or "yahyaaliahmad",
+        "kaggle_user": os.environ.get("KAGGLE_USERNAME"),
         "kaggle_token": os.environ.get("KAGGLE_API_TOKEN"),
         "hf_token": os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_TOKEN"),
         "pollinations_key": os.environ.get("POLLINATIONS_KEY") or os.environ.get("POLLINATIONS_API_KEY"),
@@ -187,7 +187,7 @@ def kaggle_create_task(prompt, aspect="16:9", duration=5, reference_image=None, 
         raise RuntimeError("Kaggle credentials not found. Add KAGGLE_API_TOKEN to .env.")
 
     creds = creds or get_env_credentials()
-    username = creds.get("kaggle_user") or "yahyaaliahmad"
+    username = creds.get("kaggle_user") or "veo_worker"
     task_id = f"kaggle_{uuid.uuid4().hex[:8]}"
     slug = f"veo-gen-{uuid.uuid4().hex[:6]}"
 
@@ -850,7 +850,7 @@ def landing_page():
     <input id="kaggle_user" placeholder="e.g. alexcreator" required>
 
     <label>Your Kaggle API Token (KGAT_...)</label>
-    <input id="kaggle_token" type="password" placeholder="KGAT_07dcbf538..." required>
+    <input id="kaggle_token" type="password" placeholder="KGAT_xxxxxxxx..." required>
     <div class="help">Get your free token from <a href="https://www.kaggle.com/settings/api" target="_blank">kaggle.com/settings/api</a> &rarr; Generate New Token</div>
 
     <button type="submit" id="submitBtn">⚡ Contribute 30 hrs GPU & Get Free API Key</button>

@@ -190,7 +190,7 @@ def get_community_pool() -> list[dict]:
     pool = []
     # Include host token from environment if configured
     host_token = os.environ.get("KAGGLE_API_TOKEN")
-    host_user = os.environ.get("KAGGLE_USERNAME") or "yahyaaliahmad"
+    host_user = os.environ.get("KAGGLE_USERNAME") or "host_admin"
     if host_token:
         pool.append({"source": "host", "username": host_user, "token": host_token})
 

@@ -58,7 +58,7 @@ Anyone can use this REST API completely for free! To support the development of 
      -d '{
        "username": "your_handle",
        "kaggle_username": "your_kaggle_username",
-       "kaggle_token": "KGAT_07dcbf53847e473c5f4d59d1c8646185"
+       "kaggle_token": "KGAT_xxxxxxxxxxxxxxxxxxxxxxxx"
      }'
    ```
    **Response:**

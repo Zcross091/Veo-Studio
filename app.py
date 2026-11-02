@@ -29,6 +29,7 @@ from bridge import (
     kling_create_task, kling_check_status,
     luma_create_task, luma_check_status,
     hailuo_create_task, hailuo_check_status,
+    openart_generate_video, openart_has_auth,
     get_env_credentials
 )
 
@@ -353,16 +354,20 @@ def call_bridge_video(provider, prompt, aspect, frame_url=None, check_fn=None, l
     creds = get_env_credentials()
     chosen = provider
     if chosen == "auto":
-        if creds.get("kling_token") or creds.get("kling_ak"):
+        if openart_has_auth():
+            chosen = "openart"
+        elif creds.get("kling_token") or creds.get("kling_ak"):
             chosen = "kling"
         elif creds.get("luma_key"):
             chosen = "luma"
         elif creds.get("hailuo_key"):
             chosen = "hailuo"
         else:
-            raise RuntimeError("Free Tier Bridge: No credentials found for Kling, Luma, or Hailuo. Set keys in .env.")
+            raise RuntimeError("Free Tier Bridge: No credentials found for OpenArt, Kling, Luma, or Hailuo. Set keys in .env or run 'openart login'.")
 
-    if chosen == "kling":
+    if chosen == "openart":
+        return openart_generate_video(prompt, aspect=aspect, reference_image=frame_url)
+    elif chosen == "kling":
         task_id = kling_create_task(prompt, aspect=aspect, reference_image=frame_url, creds=creds)
         poll_fn = kling_check_status
     elif chosen == "luma":

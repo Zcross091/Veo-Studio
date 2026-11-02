@@ -14,10 +14,13 @@ Features:
 import base64
 import json
 import os
+import shutil
+import subprocess
 import time
 import urllib.error
 import urllib.request
 import uuid
+from pathlib import Path
 from flask import Flask, jsonify, request
 
 app = Flask(__name__)
@@ -226,6 +229,50 @@ def hailuo_check_status(task_id, creds=None):
         return {"status": "queued", "progress": 0}
 
 
+# ---------- 4. OpenArt AI Adapter ----------
+def openart_cli_path():
+    p = Path(__file__).parent / ".venv" / "Scripts" / "openart.exe"
+    if p.exists():
+        return str(p)
+    return shutil.which("openart") or "openart"
+
+
+def openart_has_auth():
+    if os.environ.get("OPENART_TOKEN"):
+        return True
+    cred = Path.home() / ".openart" / "cli-credentials.json"
+    return cred.exists()
+
+
+def openart_generate_video(prompt, aspect="16:9", duration=5, reference_image=None, out_path=None):
+    """Generate video using official OpenArt CLI."""
+    cli = openart_cli_path()
+    if not openart_has_auth():
+        raise RuntimeError("OpenArt is not authenticated. Run '.\\.venv\\Scripts\\openart.exe login' in terminal to link your account.")
+
+    cmd = [cli, "generate", "video", prompt, "--json"]
+    if aspect in ("16:9", "9:16"):
+        cmd.extend(["--aspect-ratio", aspect])
+    if reference_image:
+        cmd.extend(["--image", str(reference_image)])
+    if out_path:
+        cmd.extend(["-o", str(out_path)])
+
+    p = subprocess.run(cmd, capture_output=True, text=True)
+    if p.returncode != 0:
+        err = p.stderr.strip() or p.stdout.strip()
+        raise RuntimeError(f"OpenArt error: {err}")
+
+    try:
+        data = json.loads(p.stdout)
+        url = data.get("url") or (data.get("video") or {}).get("url") or (data.get("result") or {}).get("url")
+        return url or str(out_path)
+    except Exception:
+        if out_path and Path(out_path).exists():
+            return str(out_path)
+        raise RuntimeError(f"OpenArt finished but produced unexpected output: {p.stdout}")
+
+
 # ---------- Unified API Endpoints ----------
 @app.get("/health")
 def health():
@@ -236,6 +283,7 @@ def health():
             "kling": bool(creds.get("kling_token") or creds.get("kling_ak")),
             "luma": bool(creds.get("luma_key")),
             "hailuo": bool(creds.get("hailuo_key")),
+            "openart": openart_has_auth(),
         }
     })
 
@@ -257,17 +305,37 @@ def generate_video():
     # Determine provider
     chosen_provider = provider
     if provider == "auto":
-        if creds.get("kling_token") or creds.get("kling_ak"):
+        if openart_has_auth():
+            chosen_provider = "openart"
+        elif creds.get("kling_token") or creds.get("kling_ak"):
             chosen_provider = "kling"
         elif creds.get("luma_key"):
             chosen_provider = "luma"
         elif creds.get("hailuo_key"):
             chosen_provider = "hailuo"
         else:
-            return jsonify(error="No credentials configured for Kling, Luma, or Hailuo. Set keys in .env."), 400
+            return jsonify(error="No credentials configured for OpenArt, Kling, Luma, or Hailuo. Set keys in .env or run openart login."), 400
 
     try:
-        if chosen_provider == "kling":
+        if chosen_provider == "openart":
+            v_url = openart_generate_video(prompt, aspect, duration, reference_image)
+            task_id = f"openart_{uuid.uuid4().hex[:8]}"
+            TASKS[task_id] = {
+                "id": task_id,
+                "provider": "openart",
+                "status": "completed",
+                "progress": 100,
+                "video_url": v_url,
+                "error": None,
+            }
+            return jsonify({
+                "task_id": task_id,
+                "provider": "openart",
+                "status": "completed",
+                "video_url": v_url,
+                "poll_url": f"/api/v1/video/status/{task_id}",
+            })
+        elif chosen_provider == "kling":
             task_id = kling_create_task(prompt, aspect, duration, reference_image, creds)
         elif chosen_provider == "luma":
             task_id = luma_create_task(prompt, aspect, reference_image, creds)
@@ -331,3 +399,4 @@ if __name__ == "__main__":
     print(f"  Single Endpoint: POST http://127.0.0.1:{port}/api/v1/video/generate")
     print(f"  ========================================================\n")
     app.run(host="127.0.0.1", port=port, threaded=True)
+

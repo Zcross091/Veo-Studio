@@ -633,12 +633,19 @@ function unlockWorkspace(user, key) {
   activeUser = user;
   document.getElementById('authGate').classList.add('hidden');
   document.getElementById('userPill').style.display = 'flex';
-  document.getElementById('userName').textContent = '@' + user.username;
-  document.getElementById('menuUserName').textContent = '@' + user.username;
+  const prefix = user.is_admin ? '👑 ' : '@';
+  document.getElementById('userName').textContent = prefix + (user.username || 'creator');
+  document.getElementById('menuUserName').textContent = prefix + (user.username || 'creator');
   document.getElementById('menuGens').textContent = user.generations_count || 0;
-  const devCount = user.device_count || (user.devices ? user.devices.length : 1);
   const devEl = document.getElementById('menuDevices');
-  if (devEl) devEl.textContent = `${devCount} / 2 Active`;
+  if (devEl) {
+    if (user.is_admin || user.max_devices === 'unlimited') {
+      devEl.textContent = '👑 Unlimited (Owner)';
+    } else {
+      const devCount = user.device_count || (user.devices ? user.devices.length : 1);
+      devEl.textContent = `${devCount} / 2 Active`;
+    }
+  }
   document.getElementById('inApiKey').value = key;
 }
 

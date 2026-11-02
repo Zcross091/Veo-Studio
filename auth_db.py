@@ -40,12 +40,18 @@ def init_db():
                 created_at REAL NOT NULL,
                 last_used_at REAL,
                 generations_count INTEGER DEFAULT 0,
+                is_admin INTEGER DEFAULT 0,
                 is_active INTEGER DEFAULT 1
             );
         """)
         conn.execute("""
             CREATE INDEX IF NOT EXISTS idx_users_api_key ON community_users (api_key);
         """)
+        try:
+            conn.execute("ALTER TABLE community_users ADD COLUMN is_admin INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass  # Already exists
+
         conn.execute("""
             CREATE TABLE IF NOT EXISTS user_devices (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -62,6 +68,59 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_devices_user ON user_devices (user_id);
         """)
         conn.commit()
+
+    # Automatically ensure master owner key is initialized
+    ensure_owner_key()
+
+
+def ensure_owner_key(custom_key: str = None) -> str:
+    """Ensure a permanent master REST API key exists in .env and community_users."""
+    master_key = custom_key or os.environ.get("VEO_MASTER_KEY")
+    if not master_key:
+        master_key = f"veo_sk_master_{secrets.token_hex(20)}"
+        os.environ["VEO_MASTER_KEY"] = master_key
+
+    # Ensure key is written to .env
+    env_path = BASE_DIR / ".env"
+    try:
+        content = env_path.read_text(encoding="utf-8") if env_path.exists() else ""
+        if "VEO_MASTER_KEY" in content:
+            lines = [line for line in content.splitlines() if not line.startswith("VEO_MASTER_KEY")]
+            lines.append(f'VEO_MASTER_KEY="{master_key}"')
+            env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        else:
+            if content and not content.endswith("\n"):
+                content += "\n"
+            content += f"# Veo Studio Master REST API Key (Owner Access - No Kaggle re-entry required)\nVEO_MASTER_KEY=\"{master_key}\"\n"
+            env_path.write_text(content, encoding="utf-8")
+    except Exception as e:
+        print(f"[auth_db] Notice: Could not write VEO_MASTER_KEY to .env: {e}")
+
+    # Register owner in SQLite database
+    kaggle_user = os.environ.get("KAGGLE_USERNAME") or "yahyaaliahmad"
+    kaggle_tok = os.environ.get("KAGGLE_API_TOKEN") or "env_configured"
+    now = time.time()
+    try:
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id FROM community_users WHERE username = 'owner'")
+            row = cursor.fetchone()
+            if row:
+                cursor.execute("""
+                    UPDATE community_users
+                    SET api_key = ?, kaggle_username = ?, kaggle_token = ?, is_admin = 1, is_active = 1
+                    WHERE username = 'owner'
+                """, (master_key, kaggle_user, kaggle_tok))
+            else:
+                cursor.execute("""
+                    INSERT INTO community_users (username, api_key, kaggle_username, kaggle_token, created_at, is_admin, is_active)
+                    VALUES ('owner', ?, ?, ?, ?, 1, 1)
+                """, (master_key, kaggle_user, kaggle_tok, now))
+            conn.commit()
+    except Exception as e:
+        print(f"[auth_db] Notice: Could not sync owner to DB: {e}")
+
+    return master_key
 
 
 # Initialize table on import
@@ -173,17 +232,26 @@ def validate_api_key(api_key: str):
     if not api_key:
         return None
 
-    # Check host master key from .env (admin bypass)
-    master_key = os.environ.get("VEO_MASTER_KEY")
+    # Check host master key from .env (owner admin bypass)
+    master_key = (os.environ.get("VEO_MASTER_KEY") or "").strip()
     if master_key and api_key == master_key:
-        return {"id": 0, "username": "admin", "is_admin": True, "generations_count": 0}
+        return {
+            "id": 0,
+            "username": "owner",
+            "is_admin": True,
+            "generations_count": 0,
+            "is_active": 1,
+            "created_at": 1700000000.0,
+        }
 
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM community_users WHERE api_key = ? AND is_active = 1", (api_key,))
         row = cursor.fetchone()
         if row:
-            return dict(row)
+            d = dict(row)
+            d["is_admin"] = bool(d.get("is_admin", 0))
+            return d
     return None
 
 
@@ -245,12 +313,20 @@ def get_pool_stats() -> dict:
 def check_or_register_device(user_id: int, device_id: str, device_label: str = "") -> tuple[bool, str, int]:
     """Verify or register a device for a user.
 
-    Enforces a strict maximum of 2 devices per REST API key.
+    Enforces a strict maximum of 2 devices per standard REST API key.
+    Owner/Admin keys have unlimited device access.
     Returns: (is_allowed: bool, message: str, current_device_count: int)
     """
     if not user_id:
         # Admin / master key has no device restrictions
-        return True, "Admin access (unlimited devices)", 0
+        return True, "Owner / Admin access (unlimited devices)", 0
+
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT is_admin FROM community_users WHERE id = ?", (user_id,))
+        u_row = cursor.fetchone()
+        if u_row and u_row["is_admin"]:
+            return True, "Owner / Admin access (unlimited devices)", 0
 
     device_id = (device_id or "").strip()
     if not device_id:

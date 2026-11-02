@@ -801,15 +801,17 @@ def auth_me():
             "max_devices": 2
         }), 403
 
+    is_admin = bool(user.get("is_admin") or user.get("id") == 0)
     devices = auth_db.get_user_devices(user["id"])
     return jsonify({
         "username": user.get("username"),
         "generations_count": user.get("generations_count", 0),
         "is_active": bool(user.get("is_active", 1)),
-        "created_at": user.get("created_at"),
+        "created_at": user.get("created_at") or 1700000000,
         "devices": devices,
         "device_count": len(devices),
-        "max_devices": 2,
+        "max_devices": "unlimited" if is_admin else 2,
+        "is_admin": is_admin,
     })
 
 

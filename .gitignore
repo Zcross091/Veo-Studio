@@ -3,6 +3,9 @@
 .env.local
 data/
 *.db
+*owner_key*.txt
+*_key_*.txt
+*.key
 
 # Python virtual environment & cache
 .venv/

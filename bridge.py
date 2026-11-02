@@ -640,9 +640,15 @@ def auth_me():
     })
 
 
+@app.get("/")
+@app.get("/landing")
 @app.get("/signup")
-def signup_page():
-    """Web interface to sign up for a free API key with a Kaggle token."""
+def landing_page():
+    """Web showcase page advertising AI video capabilities, stock gallery, and Kaggle key signup."""
+    landing_file = BASE_DIR / "static" / "landing.html"
+    if landing_file.exists():
+        return landing_file.read_text(encoding="utf-8")
+    return signup_page()
     html = """<!doctype html>
 <html lang="en">
 <head>

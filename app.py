@@ -851,6 +851,12 @@ def videos(name):
     return send_from_directory(OUT, name)
 
 
+@app.get("/landing")
+def landing():
+    landing_file = BASE / "static" / "landing.html"
+    return landing_file.read_text(encoding="utf-8")
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "5000"))
     import socket

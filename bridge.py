@@ -29,7 +29,9 @@ import urllib.parse
 import urllib.request
 import uuid
 from pathlib import Path
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, render_template_string
+
+import auth_db
 
 app = Flask(__name__)
 
@@ -564,6 +566,220 @@ def is_provider_available(prov):
 
 
 # ==============================================================================
+# Community Auth & API Key Management
+# ==============================================================================
+def get_request_auth():
+    """Extract and validate API key from request headers, query, or body."""
+    auth_header = request.headers.get("Authorization", "").strip()
+    key = None
+    if auth_header.startswith("Bearer "):
+        key = auth_header[7:].strip()
+    elif not key:
+        key = request.headers.get("X-API-Key", "").strip()
+    if not key:
+        key = request.args.get("api_key", "").strip()
+    if not key and request.is_json:
+        key = (request.get_json(silent=True) or {}).get("api_key", "").strip()
+
+    if key:
+        user = auth_db.validate_api_key(key)
+        return user
+    return None
+
+
+@app.post("/api/v1/auth/signup")
+def signup():
+    """Register for a free API key by contributing a Kaggle GPU token to the community pool."""
+    data = request.get_json(force=True, silent=True) or {}
+    username = (data.get("username") or "").strip()
+    kaggle_username = (data.get("kaggle_username") or "").strip()
+    kaggle_token = (data.get("kaggle_token") or "").strip()
+
+    try:
+        res = auth_db.register_user(username, kaggle_username, kaggle_token)
+        api_key = res["api_key"]
+        return jsonify({
+            "status": "success",
+            "username": res["username"],
+            "api_key": api_key,
+            "kaggle_username": res["kaggle_username"],
+            "message": "Welcome to Veo Studio Community GPU Pool! Your free API key is now active.",
+            "compute_contribution": "30 hrs/week free GPU compute added to shared pool",
+            "usage": {
+                "endpoint": "POST /api/v1/video/generate",
+                "header": f"Authorization: Bearer {api_key}",
+                "example_curl": f'curl -X POST http://127.0.0.1:5050/api/v1/video/generate -H "Authorization: Bearer {api_key}" -H "Content-Type: application/json" -d \'{{"prompt": "A majestic dragon soaring through clouds", "provider": "auto"}}\''
+            }
+        }), 201
+    except ValueError as ve:
+        return jsonify(error=str(ve)), 400
+    except Exception as e:
+        return jsonify(error=f"Registration failed: {e}"), 500
+
+
+@app.get("/api/v1/auth/stats")
+def pool_stats():
+    """Get community compute pool stats."""
+    return jsonify({
+        "status": "active",
+        **auth_db.get_pool_stats(),
+    })
+
+
+@app.get("/api/v1/auth/me")
+def auth_me():
+    """Verify an API key and return profile status."""
+    user = get_request_auth()
+    if not user:
+        return jsonify(error="Valid API key required via Authorization header"), 401
+    return jsonify({
+        "username": user.get("username"),
+        "generations_count": user.get("generations_count", 0),
+        "is_active": bool(user.get("is_active", 1)),
+        "created_at": user.get("created_at"),
+    })
+
+
+@app.get("/signup")
+def signup_page():
+    """Web interface to sign up for a free API key with a Kaggle token."""
+    html = """<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Veo Studio - Free Community API Key</title>
+<style>
+  :root {
+    --bg: #0b0e14; --panel: #131722; --card: #1a2030; --text: #e2e8f0;
+    --muted: #94a3b8; --accent: #38bdf8; --line: #263045; --green: #34d399;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  body{background:var(--bg);color:var(--text);display:flex;min-height:100vh;align-items:center;justify-content:center;padding:20px}
+  .box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:32px 28px;max-width:560px;width:100%;box-shadow:0 12px 36px rgba(0,0,0,0.4)}
+  h1{font-size:22px;font-weight:700;color:#fff;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+  .tag{background:rgba(56,189,248,0.15);color:var(--accent);font-size:12px;padding:3px 8px;border-radius:6px;font-weight:600}
+  p{color:var(--muted);font-size:14px;line-height:1.5;margin-bottom:20px}
+  .stats-bar{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:24px;text-align:center}
+  .stats-num{font-size:18px;font-weight:700;color:var(--accent)}
+  .stats-lbl{font-size:11px;color:var(--muted);margin-top:2px}
+  label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#cbd5e1}
+  input{width:100%;padding:11px 14px;background:var(--card);border:1px solid var(--line);border-radius:8px;color:#fff;font-size:14px;margin-bottom:16px;outline:none}
+  input:focus{border-color:var(--accent)}
+  .help{font-size:12px;color:var(--muted);margin-top:-10px;margin-bottom:16px}
+  .help a{color:var(--accent);text-decoration:none}
+  .help a:hover{text-decoration:underline}
+  button{width:100%;background:var(--accent);color:#0b0e14;border:none;border-radius:8px;padding:12px;font-size:15px;font-weight:700;cursor:pointer;transition:transform .1s, opacity .1s}
+  button:hover{opacity:0.95}
+  button:active{transform:scale(0.98)}
+  .result{display:none;margin-top:20px;padding:16px;background:rgba(52,211,153,0.1);border:1px solid var(--green);border-radius:10px}
+  .result h3{color:var(--green);font-size:15px;margin-bottom:8px}
+  .key-box{background:#000;padding:10px 12px;border-radius:6px;font-family:monospace;font-size:13px;color:#f8fafc;word-break:break-all;user-select:all;margin-bottom:10px}
+  .copy-btn{background:#263045;color:#fff;padding:8px;font-size:12px;width:auto;margin-top:4px}
+  .error{display:none;margin-top:16px;padding:12px;background:rgba(239,68,68,0.15);border:1px solid #ef4444;border-radius:8px;color:#fca5a5;font-size:13px}
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>⚡ Veo Studio <span class="tag">Free Community API</span></h1>
+  <p>Get a free API key to use our unified video generation gateway. To support project development, connect your free Kaggle GPU token to contribute 30 hrs/week compute to the pool.</p>
+
+  <div class="stats-bar" id="stats">
+    <div><div class="stats-num" id="statMembers">--</div><div class="stats-lbl">Contributors</div></div>
+    <div><div class="stats-num" id="statGpu">-- hrs</div><div class="stats-lbl">Weekly GPU Pool</div></div>
+    <div><div class="stats-num" id="statGens">--</div><div class="stats-lbl">Videos Rendered</div></div>
+  </div>
+
+  <form id="signupForm">
+    <label>Your Username / Handle</label>
+    <input id="username" placeholder="e.g. alex_creator" required minlength="3" maxlength="32">
+
+    <label>Your Kaggle Username</label>
+    <input id="kaggle_user" placeholder="e.g. alexcreator" required>
+
+    <label>Your Kaggle API Token (KGAT_...)</label>
+    <input id="kaggle_token" type="password" placeholder="KGAT_07dcbf538..." required>
+    <div class="help">Get your free token from <a href="https://www.kaggle.com/settings/api" target="_blank">kaggle.com/settings/api</a> &rarr; Generate New Token</div>
+
+    <button type="submit" id="submitBtn">⚡ Contribute 30 hrs GPU & Get Free API Key</button>
+  </form>
+
+  <div class="error" id="errBox"></div>
+
+  <div class="result" id="resBox">
+    <h3>🎉 Success! Your Free API Key is Ready</h3>
+    <p style="margin-bottom:8px">Use this key in the <code>Authorization: Bearer &lt;key&gt;</code> header on <code>POST /api/v1/video/generate</code>:</p>
+    <div class="key-box" id="keyVal"></div>
+    <button type="button" class="copy-btn" id="copyBtn">Copy API Key</button>
+  </div>
+</div>
+
+<script>
+async function loadStats(){
+  try {
+    const r = await fetch('/api/v1/auth/stats');
+    if (r.ok){
+      const d = await r.json();
+      document.getElementById('statMembers').textContent = d.community_members || 0;
+      document.getElementById('statGpu').textContent = (d.weekly_gpu_hours_available || 0) + ' hrs';
+      document.getElementById('statGens').textContent = d.total_videos_rendered || 0;
+    }
+  } catch(e){}
+}
+loadStats();
+
+document.getElementById('signupForm').onsubmit = async e => {
+  e.preventDefault();
+  const errBox = document.getElementById('errBox');
+  const resBox = document.getElementById('resBox');
+  const btn = document.getElementById('submitBtn');
+  errBox.style.display = 'none';
+  resBox.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = 'Verifying with Kaggle API...';
+
+  try {
+    const resp = await fetch('/api/v1/auth/signup', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        username: document.getElementById('username').value.trim(),
+        kaggle_username: document.getElementById('kaggle_user').value.trim(),
+        kaggle_token: document.getElementById('kaggle_token').value.trim()
+      })
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      errBox.textContent = data.error || 'Failed to sign up';
+      errBox.style.display = 'block';
+    } else {
+      document.getElementById('keyVal').textContent = data.api_key;
+      resBox.style.display = 'block';
+      loadStats();
+    }
+  } catch(err) {
+    errBox.textContent = 'Network error: ' + err.message;
+    errBox.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '⚡ Contribute 30 hrs GPU & Get Free API Key';
+  }
+};
+
+document.getElementById('copyBtn').onclick = () => {
+  const k = document.getElementById('keyVal').textContent;
+  navigator.clipboard.writeText(k);
+  document.getElementById('copyBtn').textContent = 'Copied to Clipboard!';
+  setTimeout(() => document.getElementById('copyBtn').textContent = 'Copy API Key', 2000);
+};
+</script>
+</body>
+</html>
+"""
+    return render_template_string(html)
+
+
+# ==============================================================================
 # Unified REST API Endpoints
 # ==============================================================================
 @app.get("/health")
@@ -590,7 +806,19 @@ def serve_video(filename):
 
 @app.post("/api/v1/video/generate")
 def generate_video():
-    """Single unified endpoint for all 7 free video providers with auto-cascade."""
+    """Single unified endpoint for all 7 free video providers with auto-cascade and API key auth."""
+    # API Key Authentication
+    auth_user = get_request_auth()
+    is_local = request.remote_addr in ("127.0.0.1", "localhost", "::1")
+    if not auth_user and not is_local:
+        return jsonify(
+            error="API key required for public access. Get your free API key by contributing a Kaggle GPU token at /signup",
+            signup_url="/signup"
+        ), 401
+
+    if auth_user and auth_user.get("id"):
+        auth_db.increment_user_usage(auth_user["id"])
+
     data = request.get_json(force=True, silent=True) or {}
     prompt = (data.get("prompt") or "").strip()
     if not prompt:
@@ -601,6 +829,11 @@ def generate_video():
     duration = int(data.get("duration", 5))
     reference_image = data.get("reference_image")
     creds = get_env_credentials()
+
+    # If community user has their own verified Kaggle token, attach it to execution
+    if auth_user and auth_user.get("kaggle_token"):
+        creds["kaggle_user"] = auth_user.get("kaggle_username")
+        creds["kaggle_token"] = auth_user.get("kaggle_token")
 
     candidates = [provider] if provider != "auto" else [p for p in CASCADE_PRIORITY if is_provider_available(p)]
     if not candidates:

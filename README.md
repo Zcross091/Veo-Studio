@@ -42,11 +42,48 @@ It automatically:
 
 ---
 
+## 🔑 Public Access & Free Community API Key
+
+Anyone can use this REST API completely for free! To support the development of this open-source project and keep free cloud compute sustainable, **users provide their free Kaggle API token to contribute 30 hrs/week GPU compute to the community pool**.
+
+### How to Get a Free API Key:
+
+1. **Via Web Browser:**
+   Visit `http://localhost:5050/signup` (or click **"🔑 Free API Key"** in the web interface). Enter your desired username and your Kaggle API token from [kaggle.com/settings/api](https://www.kaggle.com/settings/api). Your key is generated instantly!
+
+2. **Via REST API:**
+   ```bash
+   curl -X POST http://127.0.0.1:5050/api/v1/auth/signup \
+     -H "Content-Type: application/json" \
+     -d '{
+       "username": "your_handle",
+       "kaggle_username": "your_kaggle_username",
+       "kaggle_token": "KGAT_07dcbf53847e473c5f4d59d1c8646185"
+     }'
+   ```
+   **Response:**
+   ```json
+   {
+     "status": "success",
+     "api_key": "veo_sk_a1b2c3d4e5f6...",
+     "message": "Welcome to Veo Studio Community GPU Pool! Your free API key is now active.",
+     "compute_contribution": "30 hrs/week free GPU compute added to shared pool"
+   }
+   ```
+
+### Check Pool Compute Stats:
+```bash
+curl http://127.0.0.1:5050/api/v1/auth/stats
+```
+
+---
+
 ## REST API Reference
 
-Generate a video through the unified gateway:
+Generate a video through the unified gateway using your community key:
 ```bash
 curl -X POST http://127.0.0.1:5050/api/v1/video/generate \
+  -H "Authorization: Bearer <your_veo_sk_key>" \
   -H "Content-Type: application/json" \
   -d '{
     "prompt": "Cyberpunk city at midnight with neon rain",

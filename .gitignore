@@ -1,6 +1,8 @@
 # Secrets & API Keys
 .env
 .env.local
+data/
+*.db
 
 # Python virtual environment & cache
 .venv/

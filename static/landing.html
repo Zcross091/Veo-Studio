@@ -587,9 +587,13 @@ curl -X POST http://127.0.0.1:5050/api/v1/video/generate \
 </footer>
 
 <script>
+const API_BASE = (window.location.origin.includes('github.io') || window.location.protocol === 'file:' || window.location.hostname !== '127.0.0.1' && window.location.hostname !== 'localhost')
+  ? 'https://144.24.156.140.sslip.io'
+  : '';
+
 async function refreshStats() {
   try {
-    const res = await fetch('/api/v1/auth/stats');
+    const res = await fetch(API_BASE + '/api/v1/auth/stats');
     if (res.ok) {
       const data = await res.json();
       document.getElementById('statContributors').textContent = data.community_members || 1;
@@ -611,7 +615,7 @@ document.getElementById('landingSignupForm').onsubmit = async e => {
   btn.textContent = 'Verifying Token with Kaggle API...';
 
   try {
-    const resp = await fetch('/api/v1/auth/signup', {
+    const resp = await fetch(API_BASE + '/api/v1/auth/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -652,7 +656,7 @@ document.getElementById('btnCopyKey').onclick = () => {
 };
 
 const SNIPPETS = {
-  curl: (k) => `curl -X POST http://127.0.0.1:5050/api/v1/video/generate \\
+  curl: (k) => `curl -X POST https://144.24.156.140.sslip.io/api/v1/video/generate \\
   -H "Authorization: Bearer ${k}" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -663,7 +667,7 @@ const SNIPPETS = {
   }'`,
   python: (k) => `import requests
 
-url = "http://127.0.0.1:5050/api/v1/video/generate"
+url = "https://144.24.156.140.sslip.io/api/v1/video/generate"
 headers = {"Authorization": "Bearer ${k}", "Content-Type": "application/json"}
 payload = {
     "prompt": "A majestic dragon soaring through clouds at sunset",
@@ -675,7 +679,7 @@ payload = {
 response = requests.post(url, json=payload, headers=headers)
 task = response.json()
 print("Task Created:", task["task_id"])`,
-  js: (k) => `const res = await fetch("http://127.0.0.1:5050/api/v1/video/generate", {
+  js: (k) => `const res = await fetch("https://144.24.156.140.sslip.io/api/v1/video/generate", {
   method: "POST",
   headers: {
     "Authorization": "Bearer ${k}",
@@ -711,3 +715,4 @@ function copySnippet() {
 </script>
 </body>
 </html>
+

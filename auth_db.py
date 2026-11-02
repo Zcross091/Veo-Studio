@@ -76,6 +76,27 @@ def verify_kaggle_token(token: str) -> tuple[bool, str]:
         return False, f"Network error during Kaggle verification: {e}"
 
 
+def append_kaggle_to_env(username: str, kaggle_token: str):
+    """Save contributed Kaggle API key to .env alongside other keys."""
+    env_path = BASE_DIR / ".env"
+    clean_user = "".join(c if c.isalnum() else "_" for c in username).upper()
+    var_name = f"KAGGLE_CONTRIBUTOR_{clean_user}"
+
+    try:
+        content = env_path.read_text(encoding="utf-8") if env_path.exists() else ""
+        if var_name in content:
+            lines = [line for line in content.splitlines() if not line.startswith(var_name)]
+            lines.append(f'{var_name}="{kaggle_token}"')
+            env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        else:
+            if content and not content.endswith("\n"):
+                content += "\n"
+            content += f"# Community Contributor: {username}\n{var_name}=\"{kaggle_token}\"\n"
+            env_path.write_text(content, encoding="utf-8")
+    except Exception as e:
+        print(f"[auth_db] Notice: Could not update .env: {e}")
+
+
 def register_user(username: str, kaggle_username: str, kaggle_token: str) -> dict:
     """Register a new user, verify their Kaggle token, and issue an API key."""
     username = (username or "").strip()
@@ -96,7 +117,10 @@ def register_user(username: str, kaggle_username: str, kaggle_token: str) -> dic
     if not is_valid:
         raise ValueError(f"Kaggle verification failed: {msg}")
 
-    # 2. Generate unique API key
+    # 2. Save Kaggle key to .env alongside other keys
+    append_kaggle_to_env(username, kaggle_token)
+
+    # 3. Generate unique API key
     api_key = f"veo_sk_{secrets.token_hex(24)}"
     now = time.time()
 

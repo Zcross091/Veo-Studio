@@ -57,8 +57,23 @@ OUT_DIR = BASE_DIR / "outputs"
 OUT_DIR.mkdir(exist_ok=True)
 KAGGLE_RUNS_DIR = BASE_DIR / "_kaggle_runs"
 KAGGLE_RUNS_DIR.mkdir(exist_ok=True)
+TASKS_FILE = OUT_DIR / "tasks_registry.json"
 
 TASKS = {}
+if TASKS_FILE.exists():
+    try:
+        TASKS = json.loads(TASKS_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        TASKS = {}
+
+
+def sync_tasks():
+    try:
+        TASKS_FILE.write_text(json.dumps(TASKS, indent=2), encoding="utf-8")
+    except Exception:
+        pass
+
+
 ACTIVE_HF_JOBS = {}
 
 
@@ -235,6 +250,7 @@ print("[Kaggle GPU Worker] Video generation completed successfully!")
         "video_url": None,
         "error": None,
     }
+    sync_tasks()
     return task_id
 
 
@@ -244,13 +260,17 @@ def kaggle_check_status(task_id, creds=None):
     if not kernel_ref:
         return {"status": "failed", "error": "Kernel reference not found for task"}
 
-    api = get_kaggle_api()
-    st_obj = api.kernels_status(kernel_ref)
-    raw_status = getattr(st_obj, "status", str(st_obj))
-    if hasattr(raw_status, "name"):
-        status_name = raw_status.name.lower()
-    else:
-        status_name = str(raw_status).lower()
+    try:
+        api = get_kaggle_api()
+        st_obj = api.kernels_status(kernel_ref)
+        raw_status = getattr(st_obj, "status", str(st_obj))
+        if hasattr(raw_status, "name"):
+            status_name = raw_status.name.lower()
+        else:
+            status_name = str(raw_status).lower()
+    except Exception as e:
+        # Kernel may be initializing or in queue on Kaggle cluster
+        return {"status": "queued", "progress": 15, "info": "Provisioning Kaggle GPU kernel..."}
 
     if status_name in ("complete", "completed", "success"):
         # Download generated video
@@ -1017,6 +1037,7 @@ def generate_video():
                 TASKS[tid].setdefault("status", "queued")
                 TASKS[tid].setdefault("progress", 0)
                 TASKS[tid].setdefault("created_at", time.time())
+            sync_tasks()
             return jsonify({
                 "task_id": tid,
                 "provider": cand,
@@ -1056,6 +1077,7 @@ def get_task_status(task_id):
 
         if task_id in TASKS:
             TASKS[task_id].update(res)
+            sync_tasks()
 
         return jsonify({
             "task_id": task_id,

@@ -580,7 +580,13 @@ async function resetDevicesFromGate(key) {
 // =============================================================================
 function setVeoKey(key) {
   if (!key) return;
-  key = key.trim();
+  key = key.trim().replace(/\s+/g, '');
+  if (key.length > 50 && key.length % 2 === 0) {
+    const half = key.length / 2;
+    if (key.slice(0, half) === key.slice(half)) {
+      key = key.slice(0, half);
+    }
+  }
   try {
     localStorage.setItem('veo_api_key', key);
   } catch (e) {}
@@ -590,12 +596,25 @@ function setVeoKey(key) {
 
 function getVeoKey() {
   try {
-    const k = localStorage.getItem('veo_api_key');
-    if (k && k.trim()) return k.trim();
+    let k = localStorage.getItem('veo_api_key');
+    if (k && k.trim()) {
+      k = k.trim().replace(/\s+/g, '');
+      if (k.length > 50 && k.length % 2 === 0 && k.slice(0, k.length / 2) === k.slice(k.length / 2)) {
+        k = k.slice(0, k.length / 2);
+      }
+      return k;
+    }
   } catch (e) {}
 
   const match = document.cookie.match(new RegExp('(^|;\\s*)veo_api_key=([^;]+)'));
-  return match ? decodeURIComponent(match[2].trim()) : null;
+  if (match) {
+    let k = decodeURIComponent(match[2].trim()).replace(/\s+/g, '');
+    if (k.length > 50 && k.length % 2 === 0 && k.slice(0, k.length / 2) === k.slice(k.length / 2)) {
+      k = k.slice(0, k.length / 2);
+    }
+    return k;
+  }
+  return null;
 }
 
 function clearVeoKey() {
@@ -608,6 +627,10 @@ function clearVeoKey() {
 // =============================================================================
 async function verifyKey(key) {
   if (!key) return null;
+  key = key.trim().replace(/\s+/g, '');
+  if (key.length > 50 && key.length % 2 === 0 && key.slice(0, key.length / 2) === key.slice(key.length / 2)) {
+    key = key.slice(0, key.length / 2);
+  }
   try {
     const resp = await fetch(API_BASE + '/api/v1/auth/me', {
       headers: {
@@ -624,6 +647,7 @@ async function verifyKey(key) {
     }
   } catch (err) {
     console.warn("Backend auth error:", err);
+    return { isNetworkError: true, message: "Gateway error: " + err.message };
   }
   return null;
 }
@@ -696,7 +720,12 @@ document.getElementById('gateForm').onsubmit = async e => {
   const input = document.getElementById('gateKeyInput');
   const btn = document.getElementById('btnUnlock');
   const errBox = document.getElementById('gateError');
-  const key = input.value.trim();
+  let key = input.value.trim().replace(/\s+/g, '');
+
+  if (key.length > 50 && key.length % 2 === 0 && key.slice(0, key.length / 2) === key.slice(key.length / 2)) {
+    key = key.slice(0, key.length / 2);
+    input.value = key;
+  }
 
   errBox.style.display = 'none';
   btn.disabled = true;
@@ -706,7 +735,10 @@ document.getElementById('gateForm').onsubmit = async e => {
   btn.disabled = false;
   btn.textContent = '⚡ Unlock Studio →';
 
-  if (user && user.isBlocked) {
+  if (user && user.isNetworkError) {
+    errBox.textContent = user.message || 'Gateway connection error. Please try again.';
+    errBox.style.display = 'block';
+  } else if (user && user.isBlocked) {
     showGate(null, user, key);
   } else if (user && user.username) {
     setVeoKey(key);

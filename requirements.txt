@@ -2,3 +2,6 @@ flask>=3.0
 google-genai>=2.19.0
 imageio-ffmpeg>=0.5
 pillow>=10.0
+kaggle>=2.0.0
+six>=1.16.0
+gradio_client>=1.0.0

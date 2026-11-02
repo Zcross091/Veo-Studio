@@ -30,6 +30,9 @@ from bridge import (
     luma_create_task, luma_check_status,
     hailuo_create_task, hailuo_check_status,
     openart_generate_video, openart_has_auth,
+    kaggle_create_task, kaggle_check_status, kaggle_has_auth,
+    hf_create_task, hf_check_status, hf_has_auth,
+    pollinations_generate_video, pollinations_has_auth,
     get_env_credentials
 )
 
@@ -350,51 +353,87 @@ def call_fal_video(api_key, model, prompt, aspect, frame_url=None, check_fn=None
 
 # ---------- Free Tier Bridge Helper ----------
 def call_bridge_video(provider, prompt, aspect, frame_url=None, check_fn=None, log_fn=None, job=None, clip_idx=0, total_clips=1):
-    """Execute video generation using the Kling/Luma/Hailuo Free-Tier Bridge."""
+    """Execute video generation using the Universal Free-Tier Bridge with auto-cascade."""
     creds = get_env_credentials()
-    chosen = provider
+    chosen = provider.lower().strip()
+
+    cascade_order = ["openart", "kaggle", "hf", "kling", "luma", "hailuo", "pollinations"]
     if chosen == "auto":
+        candidates = []
         if openart_has_auth():
-            chosen = "openart"
-        elif creds.get("kling_token") or creds.get("kling_ak"):
-            chosen = "kling"
-        elif creds.get("luma_key"):
-            chosen = "luma"
-        elif creds.get("hailuo_key"):
-            chosen = "hailuo"
-        else:
-            raise RuntimeError("Free Tier Bridge: No credentials found for OpenArt, Kling, Luma, or Hailuo. Set keys in .env or run 'openart login'.")
-
-    if chosen == "openart":
-        return openart_generate_video(prompt, aspect=aspect, reference_image=frame_url)
-    elif chosen == "kling":
-        task_id = kling_create_task(prompt, aspect=aspect, reference_image=frame_url, creds=creds)
-        poll_fn = kling_check_status
-    elif chosen == "luma":
-        task_id = luma_create_task(prompt, aspect=aspect, reference_image=frame_url, creds=creds)
-        poll_fn = luma_check_status
-    elif chosen == "hailuo":
-        task_id = hailuo_create_task(prompt, reference_image=frame_url, creds=creds)
-        poll_fn = hailuo_check_status
+            candidates.append("openart")
+        if kaggle_has_auth():
+            candidates.append("kaggle")
+        if hf_has_auth():
+            candidates.append("hf")
+        if creds.get("kling_token") or creds.get("kling_ak"):
+            candidates.append("kling")
+        if creds.get("luma_key"):
+            candidates.append("luma")
+        if creds.get("hailuo_key"):
+            candidates.append("hailuo")
+        if pollinations_has_auth():
+            candidates.append("pollinations")
     else:
-        raise RuntimeError(f"Unknown bridge provider: {chosen}")
+        candidates = [chosen]
 
-    for _ in range(240):
-        if check_fn:
-            check_fn()
-        res = poll_fn(task_id, creds=creds)
-        st = res.get("status")
-        if st == "completed":
-            v_url = res.get("video_url")
-            if not v_url:
-                raise RuntimeError("Bridge provider completed but returned no video URL")
-            return v_url
-        elif st == "failed":
-            raise RuntimeError(f"Bridge provider {chosen} failed: {res.get('error')}")
-        elif st == "in_progress" and job:
-            job["message"] = f"Generating clip {clip_idx + 1} of {total_clips} ({chosen.title()} rendering)..."
-        sleep_interruptible(4, check_fn)
-    raise TimeoutError(f"Bridge provider {chosen} timed out")
+    last_err = None
+    for cand in candidates:
+        try:
+            if log_fn:
+                log_fn(f"Attempting video clip generation via free provider '{cand}'...")
+            if job:
+                job["message"] = f"Generating clip {clip_idx + 1} of {total_clips} via {cand.upper()}..."
+
+            if cand == "openart":
+                return openart_generate_video(prompt, aspect=aspect, reference_image=frame_url)
+            elif cand == "pollinations":
+                return pollinations_generate_video(prompt, aspect=aspect, reference_image=frame_url)
+            elif cand == "kaggle":
+                task_id = kaggle_create_task(prompt, aspect=aspect, reference_image=frame_url, creds=creds)
+                poll_fn = kaggle_check_status
+            elif cand in ("hf", "huggingface"):
+                task_id = hf_create_task(prompt, aspect=aspect, reference_image=frame_url, creds=creds)
+                poll_fn = hf_check_status
+            elif cand == "kling":
+                task_id = kling_create_task(prompt, aspect=aspect, reference_image=frame_url, creds=creds)
+                poll_fn = kling_check_status
+            elif cand == "luma":
+                task_id = luma_create_task(prompt, aspect=aspect, reference_image=frame_url, creds=creds)
+                poll_fn = luma_check_status
+            elif cand in ("hailuo", "minimax"):
+                task_id = hailuo_create_task(prompt, reference_image=frame_url, creds=creds)
+                poll_fn = hailuo_check_status
+            else:
+                raise RuntimeError(f"Unknown bridge provider: {cand}")
+
+            for _ in range(240):
+                if check_fn:
+                    check_fn()
+                res = poll_fn(task_id, creds=creds)
+                st = res.get("status")
+                if st == "completed":
+                    v_url = res.get("video_url")
+                    if not v_url:
+                        raise RuntimeError(f"Bridge provider {cand} completed but returned no video URL")
+                    return v_url
+                elif st == "failed":
+                    raise RuntimeError(f"Bridge provider {cand} failed: {res.get('error')}")
+                elif st in ("in_progress", "queued") and job:
+                    prog = res.get("progress", 50)
+                    job["message"] = f"Generating clip {clip_idx + 1} of {total_clips} ({cand.upper()} {prog}%)..."
+                sleep_interruptible(4, check_fn)
+            raise TimeoutError(f"Bridge provider {cand} timed out")
+
+        except Exception as e:
+            last_err = e
+            if log_fn:
+                log_fn(f"Provider '{cand}' encountered error: {e}. Cascading...")
+            if len(candidates) > 1:
+                continue
+            raise
+
+    raise RuntimeError(f"All free bridge providers failed. Last error: {last_err}")
 
 
 # ---------- Planning & Retry Helpers ----------
@@ -696,11 +735,19 @@ def config():
     has_gemini = bool(os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
     has_genrelay = bool(os.environ.get("GENRELAY_API") or os.environ.get("GENRELAY_API_KEY"))
     has_fal = bool(os.environ.get("FAL_KEY") or os.environ.get("FAL.AI_API") or os.environ.get("FAL_API_KEY"))
+    creds = get_env_credentials()
+    has_kaggle = kaggle_has_auth()
+    has_openart = openart_has_auth()
+    has_hf = hf_has_auth()
     return jsonify(
-        has_key=has_gemini or has_genrelay or has_fal,
+        has_key=has_gemini or has_genrelay or has_fal or has_kaggle or has_openart or True,
         has_gemini=has_gemini,
         has_genrelay=has_genrelay,
         has_fal=has_fal,
+        has_kaggle=has_kaggle,
+        has_openart=has_openart,
+        has_hf=has_hf,
+        has_pollinations=True,
         model=DEFAULT_VIDEO_MODEL,
         planner=DEFAULT_PLANNER_MODEL,
     )

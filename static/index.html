@@ -168,11 +168,14 @@
   <label>Video model
     <select id="model">
       <option value="veo_3_1" selected>Google Veo 3.1 (via GenRelay) [Recommended]</option>
-      <option value="bridge_openart">⚡ OpenArt AI (Free 40 monthly tokens)</option>
-      <option value="bridge_auto">Free Tier Bridge: Auto (Kling / Luma / Hailuo / OpenArt)</option>
-      <option value="bridge_kling">Free Tier Bridge: Kling AI</option>
-      <option value="bridge_luma">Free Tier Bridge: Luma Dream Machine</option>
-      <option value="bridge_hailuo">Free Tier Bridge: Hailuo / MiniMax</option>
+      <option value="bridge_auto">⚡ Auto (Intelligent Free-Tier Cascade)</option>
+      <option value="bridge_openart">⚡ OpenArt AI (40 monthly tokens)</option>
+      <option value="bridge_kaggle">⚡ Kaggle GPU (30 hrs/week free GPU compute)</option>
+      <option value="bridge_hf">⚡ Hugging Face ZeroGPU (LTX-Video Free Cloud GPU)</option>
+      <option value="bridge_kling">⚡ Kling AI (66 daily credits)</option>
+      <option value="bridge_luma">⚡ Luma Dream Machine (30 monthly free)</option>
+      <option value="bridge_hailuo">⚡ Hailuo / MiniMax Video-01</option>
+      <option value="bridge_pollinations">⚡ Pollinations AI (Free Community Tier)</option>
       <option value="fal-ai/minimax-video/text-to-video">MiniMax Video-01 (via Fal.ai)</option>
       <option value="fal-ai/kling-video/v1/standard/text-to-video">Kling 1.0 (via Fal.ai)</option>
       <option value="fal-ai/luma-dream-machine">Luma Dream Machine (via Fal.ai)</option>
@@ -200,6 +203,12 @@
   </label>
   <label>Scene planner model
     <input id="planner" value="gemini-3.5-flash-lite">
+  </label>
+  <label>Kaggle API Token (30 hrs/wk free GPU)
+    <input id="kaggle_token" type="password" placeholder="Loaded from .env (KGAT_...)" autocomplete="off">
+  </label>
+  <label>Hugging Face Token (Free ZeroGPU)
+    <input id="hf_token" type="password" placeholder="Loaded from .env (hf_...)" autocomplete="off">
   </label>
   <label>GenRelay API Key (for Veo 3.1)
     <input id="genrelay_key" type="password" placeholder="Loaded from .env if present" autocomplete="off">
@@ -317,7 +326,7 @@ function updateHint(){
   const secs = +$('#secs').value;
   const n = Math.ceil(secs / 8);
   const m = $('#model').value;
-  const prov = m.startsWith('veo_') ? 'GenRelay Veo 3.1' : m.startsWith('bridge_') ? 'Free-Tier Bridge' : m.startsWith('fal-ai/') ? 'Fal.ai' : 'Google Direct Omni';
+  const prov = m.startsWith('veo_') ? 'GenRelay Veo 3.1' : m.startsWith('bridge_') ? 'Free-Tier Hub' : m.startsWith('fal-ai/') ? 'Fal.ai' : 'Google Direct Omni';
   $('#hint').textContent = `Target ~${secs}s video (up to ${n} clips chained seamlessly via ${prov}).`;
 }
 

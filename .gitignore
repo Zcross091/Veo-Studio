@@ -16,4 +16,5 @@ outputs/
 
 # Scratch / Temp files
 scratch/
+_kaggle_runs/
 .system_generated/

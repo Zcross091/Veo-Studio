@@ -52,6 +52,15 @@ def open_browser(port):
         pass
 
 
+def start_bridge_server():
+    try:
+        from bridge import app as bridge_app
+        bridge_port = int(os.environ.get("BRIDGE_PORT", "5050"))
+        bridge_app.run(host="127.0.0.1", port=bridge_port, threaded=True)
+    except Exception as e:
+        pass
+
+
 def main():
     print("\n" + "=" * 58)
     print("         Launching Veo Studio (All-In-One)")
@@ -60,7 +69,11 @@ def main():
     ensure_env()
     ensure_openart()
 
+    # Start REST API Bridge Hub in background thread
+    threading.Thread(target=start_bridge_server, daemon=True).start()
+
     port = int(os.environ.get("PORT", "5000"))
+    bridge_port = int(os.environ.get("BRIDGE_PORT", "5050"))
     threading.Thread(target=open_browser, args=(port,), daemon=True).start()
 
     # Import and run app
@@ -79,6 +92,7 @@ def main():
     print("  Veo Studio Ready!")
     print(f"  - On your PC:    http://127.0.0.1:{port}")
     print(f"  - On your Phone: http://{local_ip}:{port} (same Wi-Fi)")
+    print(f"  - Universal REST Hub: http://127.0.0.1:{bridge_port}/api/v1/video/generate")
     print("  ========================================================\n")
 
     app.run(host="0.0.0.0", port=port, threaded=True)
@@ -86,3 +100,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

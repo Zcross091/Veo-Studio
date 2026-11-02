@@ -26,6 +26,7 @@ from google import genai
 from google.genai import types
 
 from bridge import (
+    kie_create_task, kie_check_status, kie_has_auth,
     kling_create_task, kling_check_status,
     luma_create_task, luma_check_status,
     hailuo_create_task, hailuo_check_status,
@@ -359,9 +360,11 @@ def call_bridge_video(provider, prompt, aspect, frame_url=None, check_fn=None, l
     creds = get_env_credentials()
     chosen = provider.lower().strip()
 
-    cascade_order = ["openart", "kaggle", "hf", "kling", "luma", "hailuo", "pollinations"]
+    cascade_order = ["kie", "openart", "kaggle", "hf", "kling", "luma", "hailuo", "pollinations"]
     if chosen == "auto":
         candidates = []
+        if kie_has_auth():
+            candidates.append("kie")
         if openart_has_auth():
             candidates.append("openart")
         if kaggle_has_auth():
@@ -391,6 +394,9 @@ def call_bridge_video(provider, prompt, aspect, frame_url=None, check_fn=None, l
                 return openart_generate_video(prompt, aspect=aspect, reference_image=frame_url)
             elif cand == "pollinations":
                 return pollinations_generate_video(prompt, aspect=aspect, reference_image=frame_url)
+            elif cand == "kie":
+                task_id = kie_create_task(prompt, aspect=aspect, reference_image=frame_url, creds=creds)
+                poll_fn = kie_check_status
             elif cand == "kaggle":
                 task_id = kaggle_create_task(prompt, aspect=aspect, reference_image=frame_url, creds=creds)
                 poll_fn = kaggle_check_status
@@ -739,13 +745,15 @@ def config():
     has_fal = bool(os.environ.get("FAL_KEY") or os.environ.get("FAL.AI_API") or os.environ.get("FAL_API_KEY"))
     creds = get_env_credentials()
     has_kaggle = kaggle_has_auth()
+    has_kie = kie_has_auth()
     has_openart = openart_has_auth()
     has_hf = hf_has_auth()
     return jsonify(
-        has_key=has_gemini or has_genrelay or has_fal or has_kaggle or has_openart or True,
+        has_key=has_gemini or has_genrelay or has_fal or has_kaggle or has_kie or has_openart or True,
         has_gemini=has_gemini,
         has_genrelay=has_genrelay,
         has_fal=has_fal,
+        has_kie=has_kie,
         has_kaggle=has_kaggle,
         has_openart=has_openart,
         has_hf=has_hf,

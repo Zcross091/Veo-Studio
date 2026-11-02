@@ -94,6 +94,7 @@ def get_env_credentials():
         "kaggle_token": os.environ.get("KAGGLE_API_TOKEN"),
         "hf_token": os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_TOKEN"),
         "pollinations_key": os.environ.get("POLLINATIONS_KEY") or os.environ.get("POLLINATIONS_API_KEY"),
+        "kie_key": os.environ.get("KIE_API_KEY") or os.environ.get("KIE_KEY") or os.environ.get("KIE_AI_API"),
     }
 
 
@@ -560,13 +561,119 @@ def pollinations_generate_video(prompt, aspect="16:9", duration=5, reference_ima
 
 
 # ==============================================================================
+# 8. KIE AI Adapter (Unified access to Kling 2.1, Veo 3.1, Hailuo, Runway, Flux)
+# ==============================================================================
+def kie_has_auth():
+    creds = get_env_credentials()
+    return bool(creds.get("kie_key"))
+
+
+def kie_create_task(prompt, aspect="16:9", duration=5, reference_image=None, model="kling/v2-1-master-text-to-video", creds=None):
+    """Submit a task to KIE AI API."""
+    creds = creds or get_env_credentials()
+    key = creds.get("kie_key")
+    if not key:
+        raise ValueError("Missing KIE AI API key. Set KIE_API_KEY in .env.")
+
+    target_model = model or "kling/v2-1-master-text-to-video"
+    inp = {
+        "prompt": prompt,
+        "aspect_ratio": aspect,
+        "duration": int(duration) if duration else 5,
+    }
+    if reference_image:
+        inp["image_url"] = reference_image
+        if target_model == "kling/v2-1-master-text-to-video":
+            target_model = "kling/v2-1-master-image-to-video"
+
+    payload = {
+        "model": target_model,
+        "input": inp
+    }
+
+    url = "https://api.kie.ai/api/v1/jobs/createTask"
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json",
+            "User-Agent": "VeoStudioBridge/1.0",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        res = json.loads(resp.read().decode("utf-8"))
+        if res.get("code") != 200:
+            raise RuntimeError(f"KIE AI error ({res.get('code')}): {res.get('msg')}")
+        task_id = (res.get("data") or {}).get("taskId")
+        if not task_id:
+            raise RuntimeError(f"KIE AI did not return a taskId: {res}")
+        return f"kie_{task_id}"
+
+
+def kie_check_status(task_id, creds=None):
+    raw_id = task_id.replace("kie_", "", 1)
+    creds = creds or get_env_credentials()
+    key = creds.get("kie_key")
+    if not key:
+        return {"status": "failed", "error": "Missing KIE_API_KEY in .env"}
+
+    url = f"https://api.kie.ai/api/v1/jobs/recordInfo?taskId={urllib.parse.quote(raw_id)}"
+    req = urllib.request.Request(
+        url,
+        headers={
+            "Authorization": f"Bearer {key}",
+            "User-Agent": "VeoStudioBridge/1.0",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=20) as resp:
+        res = json.loads(resp.read().decode("utf-8"))
+        data = res.get("data") or {}
+        state = (data.get("state") or data.get("status") or "").lower()
+
+        if state == "success":
+            result_json = data.get("resultJson")
+            parsed = {}
+            if isinstance(result_json, str):
+                try:
+                    parsed = json.loads(result_json)
+                except Exception:
+                    pass
+            elif isinstance(result_json, dict):
+                parsed = result_json
+
+            video_url = None
+            if parsed:
+                urls = parsed.get("resultUrls") or parsed.get("urls")
+                if isinstance(urls, list) and urls:
+                    video_url = urls[0]
+                video_url = video_url or parsed.get("video_url") or parsed.get("url") or parsed.get("video")
+
+            if not video_url:
+                video_url = data.get("resultUrl") or data.get("videoUrl") or data.get("video_url")
+
+            return {"status": "completed", "progress": 100, "video_url": video_url}
+        elif state in ("fail", "failed", "error"):
+            err = data.get("failMsg") or data.get("error") or "KIE AI generation failed"
+            return {"status": "failed", "error": err}
+        elif state in ("generating", "processing"):
+            return {"status": "in_progress", "progress": 60}
+        elif state in ("waiting", "queuing", "queued"):
+            return {"status": "queued", "progress": 15}
+
+        return {"status": "in_progress", "progress": 30}
+
+
+# ==============================================================================
 # Auto-Cascade Dispatcher
 # ==============================================================================
-CASCADE_PRIORITY = ["openart", "kaggle", "hf", "kling", "luma", "hailuo", "pollinations"]
+CASCADE_PRIORITY = ["kie", "openart", "kaggle", "hf", "kling", "luma", "hailuo", "pollinations"]
 
 
 def is_provider_available(prov):
     creds = get_env_credentials()
+    if prov == "kie":
+        return kie_has_auth()
     if prov == "openart":
         return openart_has_auth()
     if prov == "kaggle":
@@ -813,6 +920,7 @@ def health():
     return jsonify({
         "status": "healthy",
         "providers": {
+            "kie": kie_has_auth(),
             "openart": openart_has_auth(),
             "kaggle": kaggle_has_auth(),
             "hf": hf_has_auth(),
@@ -879,6 +987,8 @@ def generate_video():
                 TASKS[tid] = {"id": tid, "provider": "pollinations", "status": "completed", "progress": 100, "video_url": v_url, "error": None}
                 return jsonify({"task_id": tid, "provider": "pollinations", "status": "completed", "video_url": v_url, "poll_url": f"/api/v1/video/status/{tid}"})
 
+            elif cand == "kie":
+                tid = kie_create_task(prompt, aspect, duration, reference_image, creds=creds)
             elif cand == "kaggle":
                 tid = kaggle_create_task(prompt, aspect, duration, reference_image, creds)
             elif cand in ("hf", "huggingface"):
@@ -924,6 +1034,8 @@ def get_task_status(task_id):
     try:
         if task_id.startswith("openart_") or task_id.startswith("pollinations_"):
             res = TASKS.get(task_id, {"status": "completed", "progress": 100})
+        elif task_id.startswith("kie_"):
+            res = kie_check_status(task_id, creds)
         elif task_id.startswith("kaggle_"):
             res = kaggle_check_status(task_id, creds)
         elif task_id.startswith("hf_"):

@@ -20,6 +20,24 @@ DATA_DIR.mkdir(exist_ok=True)
 DB_PATH = DATA_DIR / "gateway.db"
 
 
+def load_env():
+    """Load variables from .env file into os.environ."""
+    env_file = BASE_DIR / ".env"
+    if not env_file.exists():
+        return
+    for line in env_file.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, v = line.split("=", 1)
+        k = k.strip()
+        v = v.strip().strip('"').strip("'")
+        os.environ[k] = v
+
+
+load_env()
+
+
 def get_db():
     conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
     conn.row_factory = sqlite3.Row
@@ -228,12 +246,16 @@ def register_user(username: str, kaggle_username: str, kaggle_token: str) -> dic
 
 def validate_api_key(api_key: str):
     """Check if an API key is valid and return the user record."""
-    api_key = (api_key or "").strip()
+    api_key = (api_key or "").strip().strip('"').strip("'")
     if not api_key:
         return None
 
     # Check host master key from .env (owner admin bypass)
-    master_key = (os.environ.get("VEO_MASTER_KEY") or "").strip()
+    master_key = (os.environ.get("VEO_MASTER_KEY") or "").strip().strip('"').strip("'")
+    if not master_key:
+        load_env()
+        master_key = (os.environ.get("VEO_MASTER_KEY") or "").strip().strip('"').strip("'")
+
     if master_key and api_key == master_key:
         return {
             "id": 0,

@@ -67,6 +67,8 @@ def load_env():
             os.environ["GENRELAY_API"] = v
         if k in ("GEMINI_API_KEY", "GOOGLE_API_KEY"):
             os.environ["GEMINI_API_KEY"] = v
+        if k in ("KLING_API", "KLING_TOKEN", "KLING_API_KEY", "VEO_STUDIO_API"):
+            os.environ["KLING_TOKEN"] = v
 
 
 load_env()

@@ -58,6 +58,8 @@ def load_env():
         k = k.strip()
         v = v.strip().strip('"').strip("'")
         os.environ[k] = v
+        if k in ("KLING_API", "KLING_TOKEN", "KLING_API_KEY", "VEO_STUDIO_API"):
+            os.environ["KLING_TOKEN"] = v
 
 
 load_env()
@@ -68,7 +70,7 @@ def get_env_credentials():
     return {
         "kling_ak": os.environ.get("KLING_ACCESS_KEY") or os.environ.get("KLING_AK"),
         "kling_sk": os.environ.get("KLING_SECRET_KEY") or os.environ.get("KLING_SK"),
-        "kling_token": os.environ.get("KLING_TOKEN") or os.environ.get("KLING_COOKIE"),
+        "kling_token": os.environ.get("KLING_TOKEN") or os.environ.get("KLING_API") or os.environ.get("KLING_API_KEY") or os.environ.get("KLING_COOKIE") or os.environ.get("VEO_STUDIO_API"),
         "luma_key": os.environ.get("LUMA_API_KEY") or os.environ.get("LUMA_KEY") or os.environ.get("LUMA_TOKEN"),
         "hailuo_key": os.environ.get("MINIMAX_API_KEY") or os.environ.get("HAILUO_API_KEY") or os.environ.get("HAILUO_TOKEN"),
         "kaggle_user": os.environ.get("KAGGLE_USERNAME") or "yahyaaliahmad",

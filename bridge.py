@@ -915,6 +915,7 @@ document.getElementById('copyBtn').onclick = () => {
 # Unified REST API Endpoints
 # ==============================================================================
 @app.get("/health")
+@app.get("/api/v1/health")
 def health():
     creds = get_env_credentials()
     return jsonify({
